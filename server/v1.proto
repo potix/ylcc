@@ -1,18 +1,19 @@
 syntax = "proto3";
 
-package protobuf;
-option go_package = "google.golang.org/protobuf/types/known/timestamppb";
+option go_package = "github.com/potix/ylcc/server";
 
-// The Video service definition.
-service Video {
-  // GetVideoInfo
+// The ylcc service definition.
+service ylcc {
+  // Get video information 
   rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
-  // CreateVideo
-  rpc CreateVideo (CreateVideoRequest) returns (CreateVideoResponse) {}
-  // DeleteVideo
-  rpc DeleteVideo (DeleteVideoRequest) returns (DeleteVideoResponse) {}
-  // GetRecentlyVideoLiveChat
-  rpc GetRecentlyVideoLiveChat (GetRecentlyVideoLiveChatRequest) returns (GetRecentlyVideoLiveChatResponse) {}
+  // StartMonitor video
+  rpc StartMonitorVideo (StartMonitorVideoRequest) returns (StartMonitorVideoResponse) {}
+  // StopMonitor video
+  rpc StopMonitorVideo (StopMonitorVideoRequest) returns (StopMonitorVideoResponse) {}
+  // Get recently live chat of video
+  rpc GetRecentlyLiveChat (GetRecentlyLiveChatRequest) returns (GetRecentlyLiveChatResponse) {}
+  // Get all live chat of video
+  rpc GetCompressedAllLiveChat (GetCompressedAllLiveChatRequest) returns (GetCompressedAllLiveChatResponse) {}
 }
 
 message GetVideoInfoRequst {
@@ -29,11 +30,11 @@ message GetVideoInfoResponse {
   string activeLiveChatId = 7;
 }
 
-message CreateVideoRequest {
+message StartMonitorVideoRequest {
   string videoId = 1;
 }
 
-message CreateVideoResponse {
+message StartMonitorVideoResponse {
   bool success = 1;
   string videoId = 2;
   string categoryId = 3; 
@@ -43,20 +44,20 @@ message CreateVideoResponse {
   string activeLiveChatId = 7;
 }
 
-message DeleteVideoRequest {
+message StopMonitorVideoRequest {
   string videoId = 1;
 }
 
-message DeleteVideoResponse {
+message StopMonitorVideoResponse {
   bool success = 1;
 }
 
-message GetRecentlyVideoLiveChatRequest {
+message GetRecentlyLiveChatRequest {
   string videoId = 1;
   uint32 maxMessages = 2;
 }
 
-message GetRecentlyVideoLiveChatResponse {
+message GetRecentlyLiveChatResponse {
   bool exists = 1;
   repeated GetVideoLiveChatMessage liveChatMessages = 2;
 }
@@ -77,4 +78,15 @@ message GetVideoLiveChatMessage {
   string amountDisplayString = 13;
   string currency = 14;
 }
+
+message GetCompressedAllLiveChatRequest {
+  string videoId = 1;
+}
+
+message GetCompressedAllLiveChatResponse {
+  bool exists = 1;
+  // compressed data of json string
+  bytes compressedLiveChatmessages = 2;
+}
+
 

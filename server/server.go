@@ -56,7 +56,24 @@ func (s *server) Stop() {
 }
 
 // NewServer is http server with tls 
-func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, release bool, verbose bool, idleTimeout int, shutdownTimeout int, handler Handler) (*server) {
+func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, verbose bool, handler Handler) (*server, error) {
+	listen, err := net.Listen("tcp", port)
+	if err != nil {
+		return nil, log.Errorf("failed to listen: %w", err)
+	}
+	serverCred, err := credentials.NewServerTLSFromFile(tlsCertPath, tlsKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("can not create server credential: %w", err)
+	}
+	grpcServer := grpc.NewServer(grpc.Creds(serverCred))
+
+	pb.RegisterGreeterServer(, &server{})
+    if err := srv.Serve(lis); err != nil {
+        log.Fatalf("failed to serve: %v", err)
+    }
+
+
+
 	if release {
 		gin.SetMode(gin.ReleaseMode)
 	}
