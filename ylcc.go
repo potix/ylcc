@@ -76,23 +76,25 @@ func main() {
         flag.BoolVar(&cmdArgs.verbose, "verbose", false, "verbose")
         flag.Parse()
         cf, err := configurator.NewConfigurator(cmdArgs.configFile)
-        conf := new(ylccConfig)
+        conf := &ylccConfig{}
         err = cf.Load(conf)
         if err != nil {
-                log.Printf("can not load config: %v", err)
-                os.Exit(1)
+                log.Fatalf("can not load config: %v", err)
         }
         if conf.Log.UseSyslog {
 		logger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "ylcc")
                 if err != nil {
-                        log.Printf("can not create syslog: %v", err)
-                        os.Exit(1)
+                        log.Fatalf("can not create syslog: %v", err)
                 }
                 log.SetOutput(logger)
         }
         verboseLoadedConfig(conf)
+	apiKeys, err := configurator.LoadSecetFile(conf.Youtube.APIKeyFile)
+	if err != nil {
+                log.Fatalf("can not load secret file: %v", conf.Youtube.APIKeyFile)
+	}
 	newCollector := collector.NewCollector(
-		conf.Youtube.APIKeyFile,
+		apiKeys,
 		conf.Youtube.Channels,
 		conf.Verbose,
 	)
@@ -110,9 +112,7 @@ func main() {
 		conf.Web.shutdownTimeout,
 		newHandler,
 	)
-	newCollector.Start()
 	newServer.Start()
         signalWait()
         newServer.Stop()
-	newCollector.Stop()
 }
