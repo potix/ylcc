@@ -21,8 +21,9 @@ type ylccYoutubeConfig struct {
 }
 
 type ylccWebConfig struct {
-        AddrPort string `toml:"addrPort"`
-        Release  bool   `toml:"release"`
+        AddrPort    string `toml:"addrPort"`
+        TlsCertPath string `toml:"tlsCertPath"`
+        TlsKeyPath  string `toml:"tlsKeyPath"`
 }
 
 type ylccLogConfig struct {
@@ -94,22 +95,18 @@ func main() {
                 log.Fatalf("can not load secret file: %v", conf.Youtube.APIKeyFile)
 	}
 	newCollector := collector.NewCollector(
-		apiKeys,
-		conf.Youtube.Channels,
 		conf.Verbose,
+		apiKeys,
 	)
 	newHandler := handler.NewHandler(
 		conf.Verbose,
 		newCollector,
 	)
         newServer := server.NewServer(
-		conf.Web.AddrPort,
-		"",
-		"",
-		conf.Web.Release,
 		conf.Verbose,
-		conf.Web.idleTimeout,
-		conf.Web.shutdownTimeout,
+		conf.Web.AddrPort,
+		conf.Web.TlsCertPath,
+		conf.Web.TlsKeyPath,
 		newHandler,
 	)
 	newServer.Start()

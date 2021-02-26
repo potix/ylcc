@@ -20,13 +20,13 @@ func (h *handler) GetVideoInfo(ctx context.Context, request *GetVideoInfoRequst)
 
 }
 
-// StartMonitor video
-func (h *handler) StartMonitorVideo(ctx context.Context, request *StartMonitorVideoRequest) (*StartMonitorVideoResponse, error) {
+// Start collect live chat
+func (h *handler) StartCollectLiveChat(ctx context.Context, request *StartCollectLiveChatRequest) (*StartCollectLiveChatResponse, error) {
 
 }
 
-// StopMonitor video
-func (h *handler) StopMonitorVideo(ctx context.Context, request *StopMonitorVideoRequest) (*StopMonitorVideoResponse, error) {
+// Stop collect live chat
+func (h *handler) StopCollectLiveChat(ctx context.Context, request *StopCollectLiveChatRequest) (*StopCollectLiveChatResponse, error) {
 
 }
 

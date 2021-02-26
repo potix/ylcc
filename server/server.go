@@ -37,8 +37,8 @@ func (s *server) Stop() {
 }
 
 // NewServer is http server with tls 
-func NewServer(addrPort string, tlsCertPath string, tlsKeyPath string, verbose bool, handler Handler) (*server, error) {
-	listen, err := net.Listen("tcp", port)
+func NewServer(verbose bool, addrPort string, tlsCertPath string, tlsKeyPath string, handler Handler) (*server, error) {
+	listen, err := net.Listen("tcp", addrPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}

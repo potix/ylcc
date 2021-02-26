@@ -1,15 +1,15 @@
 syntax = "proto3";
 
-option go_package = "github.com/potix/ylcc/server";
+option go_package = "github.com/potix/ylcc/protocol";
 
 // The ylcc service definition.
 service ylcc {
   // Get video information 
   rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
   // StartMonitor video
-  rpc StartMonitorVideo (StartMonitorVideoRequest) returns (StartMonitorVideoResponse) {}
+  rpc StartCollectLiveChat (StartCollectLiveChatRequest) returns (StartCollectLiveChatResponse) {}
   // StopMonitor video
-  rpc StopMonitorVideo (StopMonitorVideoRequest) returns (StopMonitorVideoResponse) {}
+  rpc StopCollectLiveChat (StopCollectLiveChatRequest) returns (StopCollectLiveChatResponse) {}
   // Get recently live chat of video
   rpc GetRecentlyLiveChat (GetRecentlyLiveChatRequest) returns (GetRecentlyLiveChatResponse) {}
   // Get all live chat of video
@@ -30,11 +30,11 @@ message GetVideoInfoResponse {
   string activeLiveChatId = 7;
 }
 
-message StartMonitorVideoRequest {
+message StartCollectLiveChatRequest {
   string videoId = 1;
 }
 
-message StartMonitorVideoResponse {
+message StartCollectLiveChatResponse {
   bool success = 1;
   string videoId = 2;
   string categoryId = 3; 
@@ -44,11 +44,11 @@ message StartMonitorVideoResponse {
   string activeLiveChatId = 7;
 }
 
-message StopMonitorVideoRequest {
+message StopCollectLiveChatRequest {
   string videoId = 1;
 }
 
-message StopMonitorVideoResponse {
+message StopCollectLiveChatResponse {
   bool success = 1;
 }
 
