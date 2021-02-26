@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package protobuf;
+option go_package = "google.golang.org/protobuf/types/known/timestamppb";
+
+// The Video service definition.
+service Video {
+  // GetVideoInfo
+  rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
+  // CreateVideo
+  rpc CreateVideo (CreateVideoRequest) returns (CreateVideoResponse) {}
+  // DeleteVideo
+  rpc DeleteVideo (DeleteVideoRequest) returns (DeleteVideoResponse) {}
+  // GetRecentlyVideoLiveChat
+  rpc GetRecentlyVideoLiveChat (GetRecentlyVideoLiveChatRequest) returns (GetRecentlyVideoLiveChatResponse) {}
+}
+
+message GetVideoInfoRequst {
+  string videoId = 1;
+}
+
+message GetVideoInfoResponse {
+  bool exists = 1;
+  string videoId = 2;
+  string categoryId = 3; 
+  string channelId = 4;
+  string channelTitle = 5;  
+  string Description = 6;
+  string activeLiveChatId = 7;
+}
+
+message CreateVideoRequest {
+  string videoId = 1;
+}
+
+message CreateVideoResponse {
+  bool success = 1;
+  string videoId = 2;
+  string categoryId = 3; 
+  string channelId = 4;
+  string channelTitle = 5;  
+  string Description = 6;
+  string activeLiveChatId = 7;
+}
+
+message DeleteVideoRequest {
+  string videoId = 1;
+}
+
+message DeleteVideoResponse {
+  bool success = 1;
+}
+
+message GetRecentlyVideoLiveChatRequest {
+  string videoId = 1;
+  uint32 maxMessages = 2;
+}
+
+message GetRecentlyVideoLiveChatResponse {
+  bool exists = 1;
+  repeated GetVideoLiveChatMessage liveChatMessages = 2;
+}
+
+message GetVideoLiveChatMessage {
+  bool exists = 1;
+  string liveChatMessageListResponseEtag = 2;
+  string messageId = 3;
+  string authorChannelId = 4;
+  string authorIsChatModerator = 5;
+  string authorIsChatOwner = 6;
+  string authorIsChatSponsor = 7;
+  string authorIsVerified = 8;
+  string liveChatId = 9;
+  string displayMessage = 10;
+  string messagePublishedAt = 11;
+  bool isSuperChat = 12;
+  string amountDisplayString = 13;
+  string currency = 14;
+}
+
