@@ -15,107 +15,25 @@ type DatabaseOperator struct {
 	verbose      bool
 }
 
-type Channel struct{
-	ChannelId               string
-	Etag                    string
-	Name                    string
-	CustomUrl               string
-	Title                   string
-	Description             string
-	PublishdAt              string
-	ThumbnailDefaultUrl     string
-	ThumbnailDefaultWidth   int64
-	ThumbnailDefaultHeight  int64
-	ThumbnailHighUrl        string
-	ThumbnailHighWidth      int64
-	ThumbnailHighHeight     int64
-	ThumbnailMediumUrl      string
-	ThumbnailMediumWidth    int64
-	ThumbnailMediumHeight   int64
-	ResponseEtag            string
-	TwitterName             string
-}
-
 type Video struct {
-	VideoId                      string
-	Etag                         string
-	Name                         string
-	ChannelId                    string
-	ChannelTitle                 string
-	Title                        string
-	Description                  string
-	PublishdAt                   string
-	Duration                     string
-        LiveStreamActiveLiveChatId   string
-        LiveStreamActualStartTime    string
-        LiveStreamActualEndTime      string
-        LiveStreamScheduledStartTime string
-        LiveStreamScheduledEndTime   string
-	ThumbnailDefaultUrl          string
-	ThumbnailDefaultWidth        int64
-	ThumbnailDefaultHeight       int64
-	ThumbnailHighUrl             string
-	ThumbnailHighWidth           int64
-	ThumbnailHighHeight          int64
-	ThumbnailMediumUrl           string
-	ThumbnailMediumWidth         int64
-	ThumbnailMediumHeight        int64
-	EmbedHeight                  int64
-	EmbedWidth                   int64
-	EmbedHtml                    string
-        StatusPrivacyStatus          string
-        StatusUploadStatus           string
-        StatusEmbeddable             bool
-	ResponseEtag                 string
+	VideoId            string
+	ChannelId          string
+	CategoryId         string
+	Title              string
+	Description        string
+	PublishdAt         string
+	Duration           string
+        ActiveLiveChatId   string
+        ActualStartTime    string
+        ActualEndTime      string
+        ScheduledStartTime string
+        ScheduledEndTime   string
+        PrivacyStatus      string
+        UploadStatus       string
+        Embeddable         bool
 }
 
-type CommentThread struct {
-	CommentThreadId string
-	Etag            string
-	Name            string
-	ChannelId       string
-	VideoId         string
-	TopLevelComment *TopLevelComment
-	ReplyComments   []*ReplyComment
-	ResponseEtag    string
-}
-
-type TopLevelComment struct {
-	CommentId             string
-	Etag                  string
-	ChannelId             string
-	VideoId               string
-	CommentThreadId       string
-	AuthorChannelUrl      string
-	AuthorDisplayName     string
-	AuthorProfileImageUrl string
-	ModerationStatus      string
-	TextDisplay           string
-	TextOriginal          string
-	PublishAt             string
-	UpdateAt              string
-}
-
-type ReplyComment struct {
-	CommentId             string
-	Etag                  string
-	ChannelId             string
-	VideoId               string
-	CommentThreadId       string
-	ParentId              string
-	AuthorChannelUrl      string
-	AuthorDisplayName     string
-	AuthorProfileImageUrl string
-	ModerationStatus      string
-	TextDisplay           string
-	TextOriginal          string
-	PublishAt             string
-	UpdateAt              string
-}
-
-type CommonComment ReplyComment
-
-type LiveChatComment struct {
+type ActiveLiveChatMessage struct {
 	UniqueId            string
 	ChannelId           string
 	VideoId             string
@@ -130,31 +48,42 @@ type LiveChatComment struct {
 	VideoOffsetTimeMsec string
 }
 
-type ChannelPage struct {
-	ChannelId  string
-	Sha1Digest string
-	Dirty      int64
-	TweetId    int64
+type LiveChatMessage struct {
+	UniqueId            string
+	ChannelId           string
+	VideoId             string
+	ClientId            string
+	MessageId           string
+	TimestampAt         string
+	TimestampText       string
+	AuthorName          string
+	AuthorPhotoUrl      string
+	MessageText         string
+	PurchaseAmountText  string
+	VideoOffsetTimeMsec string
 }
 
-func (d *DatabaseOperator) DeleteLiveChatCommentsByVideoId(videoId string) (error) {
-	res, err := d.db.Exec(`DELETE FROM liveChatComment WHERE videoId = ?`, videoId)
+
+
+
+func (d *DatabaseOperator) DeleteLiveChatMessagesByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM liveChatMessage WHERE videoId = ?`, videoId)
         if err != nil {
-                return errors.Wrap(err, "can not delete liveChatComments")
+                return errors.Wrap(err, "can not delete liveChatMessages")
         }
         // 削除処理の結果から削除されたレコード数を取得
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-                return errors.Wrap(err, "can not get rowsAffected of liveChatComment")
+                return errors.Wrap(err, "can not get rowsAffected of liveChatMessage")
         }
 	if d.verbose {
-		log.Printf("delete liveChatComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+		log.Printf("delete liveChatMessages (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
 	}
 
         return nil
 }
 
-func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatComment) (error) {
+func (d *DatabaseOperator) UpdateLiveChatMessages(liveChatMessages []*LiveChatMessage) (error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "can not start transaction in update live chat")
@@ -165,9 +94,9 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 			panic(p)
 		}
 	}()
-	for _, liveChatComment := range liveChatComments {
+	for _, liveChatMessage := range liveChatMessages {
 		res, err := tx.Exec(
-		    `INSERT OR REPLACE INTO liveChatComment (
+		    `INSERT OR REPLACE INTO liveChatMessage (
 			uniqueId,
 			channelId,
 			videoId,
@@ -185,136 +114,136 @@ func (d *DatabaseOperator) UpdateLiveChatComments(liveChatComments []*LiveChatCo
 			?, ?, ?, ?, ?,
 			?, ?
 		    )`,
-		    liveChatComment.UniqueId,
-		    liveChatComment.ChannelId,
-		    liveChatComment.VideoId,
-		    liveChatComment.ClientId,
-		    liveChatComment.MessageId,
-		    liveChatComment.TimestampAt,
-		    liveChatComment.TimestampText,
-		    liveChatComment.AuthorName,
-		    liveChatComment.AuthorPhotoUrl,
-		    liveChatComment.MessageText,
-		    liveChatComment.PurchaseAmountText,
-		    liveChatComment.VideoOffsetTimeMsec,
+		    liveChatMessage.UniqueId,
+		    liveChatMessage.ChannelId,
+		    liveChatMessage.VideoId,
+		    liveChatMessage.ClientId,
+		    liveChatMessage.MessageId,
+		    liveChatMessage.TimestampAt,
+		    liveChatMessage.TimestampText,
+		    liveChatMessage.AuthorName,
+		    liveChatMessage.AuthorPhotoUrl,
+		    liveChatMessage.MessageText,
+		    liveChatMessage.PurchaseAmountText,
+		    liveChatMessage.VideoOffsetTimeMsec,
 		)
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not insert liveChatComment")
+			return errors.Wrap(err, "can not insert liveChatMessage")
 		}
 		// 挿入処理の結果からIDを取得
 		id, err := res.LastInsertId()
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not get insert id of liveChatComment")
+			return errors.Wrap(err, "can not get insert id of liveChatMessage")
 		}
 		if d.verbose {
-			log.Printf("update live chat comment (uniqueId = %v, insert id = %v)", liveChatComment.UniqueId, id)
+			log.Printf("update live chat comment (uniqueId = %v, insert id = %v)", liveChatMessage.UniqueId, id)
 		}
 	}
 	tx.Commit()
 	return nil
 }
 
-func (d *DatabaseOperator) GetLiveChatCommentsByChannelId(channelId string) ([]*LiveChatComment, error) {
-	liveChatComments := make([]*LiveChatComment, 0)
-        liveChatCommentRows, err := d.db.Query(`SELECT * FROM liveChatComment Where channelId = ?`, channelId)
+func (d *DatabaseOperator) GetLiveChatMessagesByChannelId(channelId string) ([]*LiveChatMessage, error) {
+	liveChatMessages := make([]*LiveChatMessage, 0)
+        liveChatMessageRows, err := d.db.Query(`SELECT * FROM liveChatMessage Where channelId = ?`, channelId)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get liveChatComment by channelId from database")
+                return nil, errors.Wrap(err, "can not get liveChatMessage by channelId from database")
         }
-        defer liveChatCommentRows.Close()
-        for liveChatCommentRows.Next() {
-                liveChatComment := &LiveChatComment{}
+        defer liveChatMessageRows.Close()
+        for liveChatMessageRows.Next() {
+                liveChatMessage := &LiveChatMessage{}
                 // カーソルから値を取得
-                err := liveChatCommentRows.Scan(
-		    &liveChatComment.UniqueId,
-		    &liveChatComment.ChannelId,
-		    &liveChatComment.VideoId,
-		    &liveChatComment.ClientId,
-		    &liveChatComment.MessageId,
-		    &liveChatComment.TimestampAt,
-		    &liveChatComment.TimestampText,
-		    &liveChatComment.AuthorName,
-		    &liveChatComment.AuthorPhotoUrl,
-		    &liveChatComment.MessageText,
-		    &liveChatComment.PurchaseAmountText,
-		    &liveChatComment.VideoOffsetTimeMsec,
+                err := liveChatMessageRows.Scan(
+		    &liveChatMessage.UniqueId,
+		    &liveChatMessage.ChannelId,
+		    &liveChatMessage.VideoId,
+		    &liveChatMessage.ClientId,
+		    &liveChatMessage.MessageId,
+		    &liveChatMessage.TimestampAt,
+		    &liveChatMessage.TimestampText,
+		    &liveChatMessage.AuthorName,
+		    &liveChatMessage.AuthorPhotoUrl,
+		    &liveChatMessage.MessageText,
+		    &liveChatMessage.PurchaseAmountText,
+		    &liveChatMessage.VideoOffsetTimeMsec,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan liveChatComment by channelId from database")
+                        return nil, errors.Wrap(err, "can not scan liveChatMessage by channelId from database")
                 }
-		liveChatComments = append(liveChatComments, liveChatComment)
+		liveChatMessages = append(liveChatMessages, liveChatMessage)
         }
-        return liveChatComments, nil
+        return liveChatMessages, nil
 }
 
-func (d *DatabaseOperator) GetLiveChatCommentsByVideoId(videoId string) ([]*LiveChatComment, error) {
-	liveChatComments := make([]*LiveChatComment, 0)
-        liveChatCommentRows, err := d.db.Query(`SELECT * FROM liveChatComment Where videoId = ?`, videoId)
+func (d *DatabaseOperator) GetLiveChatMessagesByVideoId(videoId string) ([]*LiveChatMessage, error) {
+	liveChatMessages := make([]*LiveChatMessage, 0)
+        liveChatMessageRows, err := d.db.Query(`SELECT * FROM liveChatMessage Where videoId = ?`, videoId)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get liveChatComment by videoId from database")
+                return nil, errors.Wrap(err, "can not get liveChatMessage by videoId from database")
         }
-        defer liveChatCommentRows.Close()
-        for liveChatCommentRows.Next() {
-                liveChatComment := &LiveChatComment{}
+        defer liveChatMessageRows.Close()
+        for liveChatMessageRows.Next() {
+                liveChatMessage := &LiveChatMessage{}
                 // カーソルから値を取得
-                err := liveChatCommentRows.Scan(
-		    &liveChatComment.UniqueId,
-		    &liveChatComment.ChannelId,
-		    &liveChatComment.VideoId,
-		    &liveChatComment.ClientId,
-		    &liveChatComment.MessageId,
-		    &liveChatComment.TimestampAt,
-		    &liveChatComment.TimestampText,
-		    &liveChatComment.AuthorName,
-		    &liveChatComment.AuthorPhotoUrl,
-		    &liveChatComment.MessageText,
-		    &liveChatComment.PurchaseAmountText,
-		    &liveChatComment.VideoOffsetTimeMsec,
+                err := liveChatMessageRows.Scan(
+		    &liveChatMessage.UniqueId,
+		    &liveChatMessage.ChannelId,
+		    &liveChatMessage.VideoId,
+		    &liveChatMessage.ClientId,
+		    &liveChatMessage.MessageId,
+		    &liveChatMessage.TimestampAt,
+		    &liveChatMessage.TimestampText,
+		    &liveChatMessage.AuthorName,
+		    &liveChatMessage.AuthorPhotoUrl,
+		    &liveChatMessage.MessageText,
+		    &liveChatMessage.PurchaseAmountText,
+		    &liveChatMessage.VideoOffsetTimeMsec,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan liveChatComment by videoId from database")
+                        return nil, errors.Wrap(err, "can not scan liveChatMessage by videoId from database")
                 }
-		liveChatComments = append(liveChatComments, liveChatComment)
+		liveChatMessages = append(liveChatMessages, liveChatMessage)
         }
-        return liveChatComments, nil
+        return liveChatMessages, nil
 }
 
-func (d *DatabaseOperator) DeleteReplyCommentsByVideoId(videoId string) (error) {
-	res, err := d.db.Exec(`DELETE FROM replyComment WHERE videoId = ?`, videoId)
+func (d *DatabaseOperator) DeleteReplyMessagesByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM replyMessage WHERE videoId = ?`, videoId)
         if err != nil {
-                return errors.Wrap(err, "can not delete replyComments")
+                return errors.Wrap(err, "can not delete replyMessages")
         }
         // 削除処理の結果から削除されたレコード数を取得
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-                return errors.Wrap(err, "can not get rowsAffected of replyComment")
+                return errors.Wrap(err, "can not get rowsAffected of replyMessage")
         }
 	if d.verbose {
-		log.Printf("delete replyComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+		log.Printf("delete replyMessages (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
 	}
 
         return nil
 }
 
-func (d *DatabaseOperator) DeleteTopLevelCommentsByVideoId(videoId string) (error) {
-	res, err := d.db.Exec(`DELETE FROM topLevelComment WHERE videoId = ?`, videoId)
+func (d *DatabaseOperator) DeleteTopLevelMessagesByVideoId(videoId string) (error) {
+	res, err := d.db.Exec(`DELETE FROM topLevelMessage WHERE videoId = ?`, videoId)
         if err != nil {
-                return errors.Wrap(err, "can not delete topLevelComments")
+                return errors.Wrap(err, "can not delete topLevelMessages")
         }
         // 削除処理の結果から削除されたレコード数を取得
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-                return errors.Wrap(err, "can not get rowsAffected of topLevelComment")
+                return errors.Wrap(err, "can not get rowsAffected of topLevelMessage")
         }
 	if d.verbose {
-		log.Printf("delete topLevelComments (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+		log.Printf("delete topLevelMessages (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
 	}
 
         return nil
 }
 
-func (d *DatabaseOperator) DeleteCommentThreadsByVideoId(videoId string) (error) {
+func (d *DatabaseOperator) DeleteMessageThreadsByVideoId(videoId string) (error) {
 	res, err := d.db.Exec(`DELETE FROM commentThread WHERE videoId = ?`, videoId)
         if err != nil {
                 return errors.Wrap(err, "can not delete commentThreads")
@@ -331,10 +260,10 @@ func (d *DatabaseOperator) DeleteCommentThreadsByVideoId(videoId string) (error)
         return nil
 }
 
-func (d *DatabaseOperator) updateReplyComments(tx *sql.Tx, replyComments []*ReplyComment) (error) {
-	for _, replyComment := range replyComments {
+func (d *DatabaseOperator) updateReplyMessages(tx *sql.Tx, replyMessages []*ReplyMessage) (error) {
+	for _, replyMessage := range replyMessages {
 		res, err := tx.Exec(
-		    `INSERT OR REPLACE INTO replyComment (
+		    `INSERT OR REPLACE INTO replyMessage (
 			commentId,
 			etag,
 			channelId,
@@ -354,39 +283,39 @@ func (d *DatabaseOperator) updateReplyComments(tx *sql.Tx, replyComments []*Repl
 			?, ?, ?, ?, ?,
 			?, ?, ?, ?
 		    )`,
-		    replyComment.CommentId,
-		    replyComment.Etag,
-		    replyComment.ChannelId,
-		    replyComment.VideoId,
-		    replyComment.CommentThreadId,
-		    replyComment.ParentId,
-		    replyComment.AuthorChannelUrl,
-		    replyComment.AuthorDisplayName,
-		    replyComment.AuthorProfileImageUrl,
-		    replyComment.ModerationStatus,
-		    replyComment.TextDisplay,
-		    replyComment.TextOriginal,
-		    replyComment.PublishAt,
-		    replyComment.UpdateAt,
+		    replyMessage.MessageId,
+		    replyMessage.Etag,
+		    replyMessage.ChannelId,
+		    replyMessage.VideoId,
+		    replyMessage.MessageThreadId,
+		    replyMessage.ParentId,
+		    replyMessage.AuthorChannelUrl,
+		    replyMessage.AuthorDisplayName,
+		    replyMessage.AuthorProfileImageUrl,
+		    replyMessage.ModerationStatus,
+		    replyMessage.TextDisplay,
+		    replyMessage.TextOriginal,
+		    replyMessage.PublishAt,
+		    replyMessage.UpdateAt,
 		)
 		if err != nil {
-			return errors.Wrap(err, "can not insert replyComment")
+			return errors.Wrap(err, "can not insert replyMessage")
 		}
 		// 挿入処理の結果からIDを取得
 		id, err := res.LastInsertId()
 		if err != nil {
-			return errors.Wrap(err, "can not get insert id of replyComment")
+			return errors.Wrap(err, "can not get insert id of replyMessage")
 		}
 		if d.verbose {
-			log.Printf("update reply comment (commentId = %v, insert id = %v)", replyComment.CommentId, id)
+			log.Printf("update reply comment (commentId = %v, insert id = %v)", replyMessage.MessageId, id)
 		}
 	}
 	return nil
 }
 
-func (d *DatabaseOperator) updateTopLevelComment(tx *sql.Tx, topLevelComment *TopLevelComment) (error) {
+func (d *DatabaseOperator) updateTopLevelMessage(tx *sql.Tx, topLevelMessage *TopLevelMessage) (error) {
 	res, err := tx.Exec(
-            `INSERT OR REPLACE INTO topLevelComment (
+            `INSERT OR REPLACE INTO topLevelMessage (
                 commentId,
                 etag,
                 channelId,
@@ -405,35 +334,35 @@ func (d *DatabaseOperator) updateTopLevelComment(tx *sql.Tx, topLevelComment *To
                 ?, ?, ?, ?, ?,
                 ?, ?, ?
             )`,
-	    topLevelComment.CommentId,
-	    topLevelComment.Etag,
-	    topLevelComment.ChannelId,
-	    topLevelComment.VideoId,
-	    topLevelComment.CommentThreadId,
-	    topLevelComment.AuthorChannelUrl,
-	    topLevelComment.AuthorDisplayName,
-	    topLevelComment.AuthorProfileImageUrl,
-	    topLevelComment.ModerationStatus,
-	    topLevelComment.TextDisplay,
-	    topLevelComment.TextOriginal,
-	    topLevelComment.PublishAt,
-	    topLevelComment.UpdateAt,
+	    topLevelMessage.MessageId,
+	    topLevelMessage.Etag,
+	    topLevelMessage.ChannelId,
+	    topLevelMessage.VideoId,
+	    topLevelMessage.MessageThreadId,
+	    topLevelMessage.AuthorChannelUrl,
+	    topLevelMessage.AuthorDisplayName,
+	    topLevelMessage.AuthorProfileImageUrl,
+	    topLevelMessage.ModerationStatus,
+	    topLevelMessage.TextDisplay,
+	    topLevelMessage.TextOriginal,
+	    topLevelMessage.PublishAt,
+	    topLevelMessage.UpdateAt,
         )
         if err != nil {
-                return errors.Wrap(err, "can not insert topLevelComment")
+                return errors.Wrap(err, "can not insert topLevelMessage")
         }
         // 挿入処理の結果からIDを取得
         id, err := res.LastInsertId()
         if err != nil {
-                return errors.Wrap(err, "can not get insert id of topLevelComment")
+                return errors.Wrap(err, "can not get insert id of topLevelMessage")
         }
 	if d.verbose {
-		log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelComment.CommentId, id)
+		log.Printf("update top level comment (commentId = %v, insert id = %v)", topLevelMessage.MessageId, id)
 	}
         return nil
 }
 
-func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (error) {
+func (d *DatabaseOperator) UpdateMessageThread(commentThread *MessageThread) (error) {
         tx, err := d.db.Begin()
         if err != nil {
                 return errors.Wrap(err, "can not start transaction in update reply comment")
@@ -455,7 +384,7 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
             ) VALUES (
                 ?, ?, ?, ?, ?, ?
             )`,
-	    commentThread.CommentThreadId,
+	    commentThread.MessageThreadId,
 	    commentThread.Etag,
 	    commentThread.Name,
 	    commentThread.ChannelId,
@@ -473,161 +402,161 @@ func (d *DatabaseOperator) UpdateCommentThread(commentThread *CommentThread) (er
                 return errors.Wrap(err, "can not get insert id of commentThread")
         }
 	if d.verbose {
-		log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.CommentThreadId, id)
+		log.Printf("update comment thread (commentThreadId = %v, insert id = %v)", commentThread.MessageThreadId, id)
 	}
-	err = d.updateTopLevelComment(tx, commentThread.TopLevelComment)
+	err = d.updateTopLevelMessage(tx, commentThread.TopLevelMessage)
 	if err != nil {
                 tx.Rollback()
-                return errors.Wrap(err, "can not update topLevelComment")
+                return errors.Wrap(err, "can not update topLevelMessage")
 	}
-	err = d.updateReplyComments(tx, commentThread.ReplyComments)
+	err = d.updateReplyMessages(tx, commentThread.ReplyMessages)
 	if err != nil {
                 tx.Rollback()
-                return errors.Wrap(err, "can not update replayComments")
+                return errors.Wrap(err, "can not update replayMessages")
 	}
         tx.Commit()
         return nil
 }
 
-func (d *DatabaseOperator) GetAllCommentsByChannelIdAndLikeText(channelId string, likeText string) ([]*CommonComment, error) {
-	commonComments := make([]*CommonComment, 0)
-        topLevelCommentRows, err := d.db.Query(`SELECT * FROM topLevelComment Where channelId = ? AND textOriginal like ?`, channelId, likeText)
+func (d *DatabaseOperator) GetAllMessagesByChannelIdAndLikeText(channelId string, likeText string) ([]*CommonMessage, error) {
+	commonMessages := make([]*CommonMessage, 0)
+        topLevelMessageRows, err := d.db.Query(`SELECT * FROM topLevelMessage Where channelId = ? AND textOriginal like ?`, channelId, likeText)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get topLevelComment by channelId and likeText from database")
+                return nil, errors.Wrap(err, "can not get topLevelMessage by channelId and likeText from database")
         }
-        defer topLevelCommentRows.Close()
-        for topLevelCommentRows.Next() {
-                commonComment := &CommonComment{}
+        defer topLevelMessageRows.Close()
+        for topLevelMessageRows.Next() {
+                commonMessage := &CommonMessage{}
                 // カーソルから値を取得
-                err := topLevelCommentRows.Scan(
-                    &commonComment.CommentId,
-                    &commonComment.Etag,
-                    &commonComment.ChannelId,
-                    &commonComment.VideoId,
-                    &commonComment.CommentThreadId,
-                    &commonComment.AuthorChannelUrl,
-                    &commonComment.AuthorDisplayName,
-                    &commonComment.AuthorProfileImageUrl,
-                    &commonComment.ModerationStatus,
-                    &commonComment.TextDisplay,
-                    &commonComment.TextOriginal,
-                    &commonComment.PublishAt,
-                    &commonComment.UpdateAt,
+                err := topLevelMessageRows.Scan(
+                    &commonMessage.MessageId,
+                    &commonMessage.Etag,
+                    &commonMessage.ChannelId,
+                    &commonMessage.VideoId,
+                    &commonMessage.MessageThreadId,
+                    &commonMessage.AuthorChannelUrl,
+                    &commonMessage.AuthorDisplayName,
+                    &commonMessage.AuthorProfileImageUrl,
+                    &commonMessage.ModerationStatus,
+                    &commonMessage.TextDisplay,
+                    &commonMessage.TextOriginal,
+                    &commonMessage.PublishAt,
+                    &commonMessage.UpdateAt,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan topLevelComment by channelId and likeText from database")
+                        return nil, errors.Wrap(err, "can not scan topLevelMessage by channelId and likeText from database")
                 }
-		commonComments = append(commonComments, commonComment)
+		commonMessages = append(commonMessages, commonMessage)
         }
-        replyCommentRows, err := d.db.Query(`SELECT * FROM replyComment Where channelId = ? AND textOriginal like ?`, channelId, likeText)
+        replyMessageRows, err := d.db.Query(`SELECT * FROM replyMessage Where channelId = ? AND textOriginal like ?`, channelId, likeText)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get replyComment by channelId and likeText from database")
+                return nil, errors.Wrap(err, "can not get replyMessage by channelId and likeText from database")
         }
-        defer replyCommentRows.Close()
-        for replyCommentRows.Next() {
-                commonComment := &CommonComment{}
+        defer replyMessageRows.Close()
+        for replyMessageRows.Next() {
+                commonMessage := &CommonMessage{}
                 // カーソルから値を取得
-                err := replyCommentRows.Scan(
-                    &commonComment.CommentId,
-                    &commonComment.Etag,
-                    &commonComment.ChannelId,
-                    &commonComment.VideoId,
-                    &commonComment.CommentThreadId,
-                    &commonComment.ParentId,
-                    &commonComment.AuthorChannelUrl,
-                    &commonComment.AuthorDisplayName,
-                    &commonComment.AuthorProfileImageUrl,
-                    &commonComment.ModerationStatus,
-                    &commonComment.TextDisplay,
-                    &commonComment.TextOriginal,
-                    &commonComment.PublishAt,
-                    &commonComment.UpdateAt,
+                err := replyMessageRows.Scan(
+                    &commonMessage.MessageId,
+                    &commonMessage.Etag,
+                    &commonMessage.ChannelId,
+                    &commonMessage.VideoId,
+                    &commonMessage.MessageThreadId,
+                    &commonMessage.ParentId,
+                    &commonMessage.AuthorChannelUrl,
+                    &commonMessage.AuthorDisplayName,
+                    &commonMessage.AuthorProfileImageUrl,
+                    &commonMessage.ModerationStatus,
+                    &commonMessage.TextDisplay,
+                    &commonMessage.TextOriginal,
+                    &commonMessage.PublishAt,
+                    &commonMessage.UpdateAt,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan replyComment by channelId and likeText from database")
+                        return nil, errors.Wrap(err, "can not scan replyMessage by channelId and likeText from database")
                 }
-		commonComments = append(commonComments, commonComment)
+		commonMessages = append(commonMessages, commonMessage)
         }
-        return commonComments, nil
+        return commonMessages, nil
 }
 
-func (d *DatabaseOperator) getReplyComments(commentThreadId string) ([]*ReplyComment, error) {
-        rows, err := d.db.Query(`SELECT * FROM replyComment WHERE commentThreadId = ?`, commentThreadId)
+func (d *DatabaseOperator) getReplyMessages(commentThreadId string) ([]*ReplyMessage, error) {
+        rows, err := d.db.Query(`SELECT * FROM replyMessage WHERE commentThreadId = ?`, commentThreadId)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get replyComment by commentThreadId from database")
+                return nil, errors.Wrap(err, "can not get replyMessage by commentThreadId from database")
         }
         defer rows.Close()
-	replyComments := make([]*ReplyComment, 0)
+	replyMessages := make([]*ReplyMessage, 0)
         for rows.Next() {
-                replyComment := &ReplyComment{}
+                replyMessage := &ReplyMessage{}
                 // カーソルから値を取得
                 err := rows.Scan(
-                    &replyComment.CommentId,
-                    &replyComment.Etag,
-                    &replyComment.ChannelId,
-                    &replyComment.VideoId,
-                    &replyComment.CommentThreadId,
-                    &replyComment.ParentId,
-                    &replyComment.AuthorChannelUrl,
-                    &replyComment.AuthorDisplayName,
-                    &replyComment.AuthorProfileImageUrl,
-                    &replyComment.ModerationStatus,
-                    &replyComment.TextDisplay,
-                    &replyComment.TextOriginal,
-                    &replyComment.PublishAt,
-                    &replyComment.UpdateAt,
+                    &replyMessage.MessageId,
+                    &replyMessage.Etag,
+                    &replyMessage.ChannelId,
+                    &replyMessage.VideoId,
+                    &replyMessage.MessageThreadId,
+                    &replyMessage.ParentId,
+                    &replyMessage.AuthorChannelUrl,
+                    &replyMessage.AuthorDisplayName,
+                    &replyMessage.AuthorProfileImageUrl,
+                    &replyMessage.ModerationStatus,
+                    &replyMessage.TextDisplay,
+                    &replyMessage.TextOriginal,
+                    &replyMessage.PublishAt,
+                    &replyMessage.UpdateAt,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan replyComment by commentThreadId from database")
+                        return nil, errors.Wrap(err, "can not scan replyMessage by commentThreadId from database")
                 }
-		replyComments = append(replyComments, replyComment)
+		replyMessages = append(replyMessages, replyMessage)
         }
-        return replyComments, nil
+        return replyMessages, nil
 }
 
-func (d *DatabaseOperator) getTopLevelComment(commentThreadId string) (*TopLevelComment, bool, error) {
-        rows, err := d.db.Query(`SELECT * FROM topLevelComment WHERE commentThreadId = ?`, commentThreadId)
+func (d *DatabaseOperator) getTopLevelMessage(commentThreadId string) (*TopLevelMessage, bool, error) {
+        rows, err := d.db.Query(`SELECT * FROM topLevelMessage WHERE commentThreadId = ?`, commentThreadId)
         if err != nil {
-                return nil, false, errors.Wrap(err, "can not get topLevelComment by commentThreadId from database")
+                return nil, false, errors.Wrap(err, "can not get topLevelMessage by commentThreadId from database")
         }
         defer rows.Close()
         for rows.Next() {
-                topLevelComment := &TopLevelComment{}
+                topLevelMessage := &TopLevelMessage{}
                 // カーソルから値を取得
                 err := rows.Scan(
-                    &topLevelComment.CommentId,
-                    &topLevelComment.Etag,
-                    &topLevelComment.ChannelId,
-                    &topLevelComment.VideoId,
-                    &topLevelComment.CommentThreadId,
-                    &topLevelComment.AuthorChannelUrl,
-                    &topLevelComment.AuthorDisplayName,
-                    &topLevelComment.AuthorProfileImageUrl,
-                    &topLevelComment.ModerationStatus,
-                    &topLevelComment.TextDisplay,
-                    &topLevelComment.TextOriginal,
-                    &topLevelComment.PublishAt,
-                    &topLevelComment.UpdateAt,
+                    &topLevelMessage.MessageId,
+                    &topLevelMessage.Etag,
+                    &topLevelMessage.ChannelId,
+                    &topLevelMessage.VideoId,
+                    &topLevelMessage.MessageThreadId,
+                    &topLevelMessage.AuthorChannelUrl,
+                    &topLevelMessage.AuthorDisplayName,
+                    &topLevelMessage.AuthorProfileImageUrl,
+                    &topLevelMessage.ModerationStatus,
+                    &topLevelMessage.TextDisplay,
+                    &topLevelMessage.TextOriginal,
+                    &topLevelMessage.PublishAt,
+                    &topLevelMessage.UpdateAt,
                 )
                 if err != nil {
-                        return nil, false, errors.Wrap(err, "can not scan topLevelComment by commentThreadId from database")
+                        return nil, false, errors.Wrap(err, "can not scan topLevelMessage by commentThreadId from database")
                 }
-		return topLevelComment, true, nil
+		return topLevelMessage, true, nil
         }
         return nil, false, nil
 }
 
-func (d *DatabaseOperator) GetCommentThreadByCommentThreadId(commentThreadId string) (*CommentThread, bool, error) {
+func (d *DatabaseOperator) GetMessageThreadByMessageThreadId(commentThreadId string) (*MessageThread, bool, error) {
         rows, err := d.db.Query(`SELECT * FROM commentThread WHERE commentThreadId = ?`, commentThreadId)
         if err != nil {
                 return nil, false, errors.Wrap(err, "can not get commentThread by commentThreadId from database")
         }
         defer rows.Close()
         for rows.Next() {
-                commentThread := &CommentThread{}
+                commentThread := &MessageThread{}
                 // カーソルから値を取得
                 err := rows.Scan(
-                    &commentThread.CommentThreadId,
+                    &commentThread.MessageThreadId,
                     &commentThread.Etag,
                     &commentThread.Name,
                     &commentThread.ChannelId,
@@ -637,19 +566,19 @@ func (d *DatabaseOperator) GetCommentThreadByCommentThreadId(commentThreadId str
                 if err != nil {
                         return nil, false, errors.Wrap(err, "can not scan commentThread by commentThreadId from database")
                 }
-		topLevelComment, ok, err := d.getTopLevelComment(commentThread.CommentThreadId)
+		topLevelMessage, ok, err := d.getTopLevelMessage(commentThread.MessageThreadId)
 		if err != nil {
                         return nil, false, errors.Wrap(err, "can not get top level comment by commentThreadId from database")
 		}
 		if !ok {
                         return nil, false, errors.Wrap(err, "not found top level comment by commentThreadId from database")
 		}
-		replyComments, err := d.getReplyComments(commentThread.CommentThreadId)
+		replyMessages, err := d.getReplyMessages(commentThread.MessageThreadId)
 		if err != nil {
                         return nil, false, errors.Wrap(err, "can not get reply comments by commentThreadId from database")
 		}
-		commentThread.TopLevelComment = topLevelComment
-		commentThread.ReplyComments = replyComments
+		commentThread.TopLevelMessage = topLevelMessage
+		commentThread.ReplyMessages = replyMessages
 		return commentThread, true, nil
         }
         return nil, false, nil
@@ -1048,6 +977,7 @@ func (d *DatabaseOperator) UpdateDirtyAndTweetIdOfChannelPage(channelId string, 
 	return nil
 }
 
+
 func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*ChannelPage, bool, error) {
         rows, err := d.db.Query(`SELECT * FROM channelPage WHERE channelId = ?`, channelId)
         if err != nil {
@@ -1072,6 +1002,15 @@ func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*Channel
 
 }
 
+
+
+
+
+
+
+
+
+
 func (d *DatabaseOperator) createTables() (error) {
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS video (
@@ -1087,7 +1026,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		liveStreamActualEndtime      TEXT NOT NULL,
 		liveStreamScheduledStartTime TEXT NOT NULL,
 		liveStreamScheduledEndTime   TEXT NOT NULL,
-		statusPrivacyStatus          TEXT NOT NULL,   
+		statusPrivacyStatus          TEXT NOT NULL,
 		statusUploadStatus           TEXT NOT NULL,
 		statusEmbeddable             TEXT NOT NULL,
 
@@ -1097,12 +1036,14 @@ func (d *DatabaseOperator) createTables() (error) {
 		return errors.Wrap(err, "can not create video table")
 	}
 
-        activeLiveChatCommentTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS activeLiveChatComment (
+        activeLiveChatMessageTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS activeLiveChatMessage (
                 messageId                       TEXT PRIMARY KEY,
 		channelId                       TEXT NOT NULL,
 		videoId                         TEXT NOT NULL,
-		liveChatMessageListResponseEtag TEXT NOT NULL,
+		apiEtag                         TEXT NOT NULL,
+		pageToken                       TEXT NOT NULL,
+		nextPageTolken                  TEXT NOT NULL,
 		authorChannelId                 TEXT NOT NULL,
 		authorChannelUrl                TEXT NOT NULL,
 		authorDisplayName               TEXT NOT NULL,
@@ -1118,23 +1059,23 @@ func (d *DatabaseOperator) createTables() (error) {
 		amountDisplayString             TEXT NOT NULL,
 		currency                        TEXT NOT NULL,
 	)`
-	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
+	_, err = d.db.Exec(avtiveLiveChatMessageTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create activeLiveChatComment table")
+		return errors.Wrap(err, "can not create activeLiveChatMessage table")
 	}
-        liveChatCommentVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_videoId_index ON liveChatComment(videoId)`
-	_, err = d.db.Exec(liveChatCommentVideoIdIndexQuery);
+        liveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessage_videoId_index ON activeLiveChatMessage(videoId)`
+	_, err = d.db.Exec(avtiveLiveChatMessageVideoIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create liveChatComment_videoId_index index")
+		return errors.Wrap(err, "can not create videoId index of avtiveLiveChatMessage")
 	}
-        liveChatCommentChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_channelId_index ON liveChatComment(channelId)`
-	_, err = d.db.Exec(liveChatCommentChannelIdIndexQuery);
+        liveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessage_channelId_index ON activeLiveChatMessage(channelId)`
+	_, err = d.db.Exec(activeLiveChatMessageChannelIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create liveChatComment_channelId_index index")
+		return errors.Wrap(err, "can not create channelId index of activeLiveChatMessage")
 	}
 
-        liveChatCommentTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS liveChatComment (
+        liveChatMessageTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS liveChatMessage (
 		messageId           TEXT PRIMARY KEY,
 		channelId           TEXT NOT NULL,
 		videoId             TEXT NOT NULL,
@@ -1147,19 +1088,19 @@ func (d *DatabaseOperator) createTables() (error) {
 		purchaseAmountText  TEXT NOT NULL,
 		videoOffsetTimeMsec TEXT NOT NULL
 	)`
-	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
+	_, err = d.db.Exec(liveChatMessageTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create liveChatComment table")
+		return errors.Wrap(err, "can not create liveChatMessage table")
 	}
-        liveChatCommentVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_videoId_index ON liveChatComment(videoId)`
-	_, err = d.db.Exec(liveChatCommentVideoIdIndexQuery);
+        liveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatMessage_videoId_index ON liveChatMessage(videoId)`
+	_, err = d.db.Exec(liveChatMessageVideoIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create liveChatComment_videoId_index index")
+		return errors.Wrap(err, "can not create vodeoId index of liveChatMessage")
 	}
-        liveChatCommentChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_channelId_index ON liveChatComment(channelId)`
-	_, err = d.db.Exec(liveChatCommentChannelIdIndexQuery);
+        liveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatMessage_channelId_index ON liveChatMessage(channelId)`
+	_, err = d.db.Exec(liveChatMessageChannelIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create liveChatComment_channelId_index index")
+		return errors.Wrap(err, "can not create channelId index liveChatMessage")
 	}
 
 	return nil

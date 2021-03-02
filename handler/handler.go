@@ -1,6 +1,7 @@
 package server
 
 import (
+	"google.golang.org/grpc"
 	pb "github.com/potix/ylcc/protocol"
 )
 
@@ -18,6 +19,13 @@ func (h *handler) Start() {
 func (h *handler) Stop() {
 	h.collector.Stop()
 }
+
+// register
+func (h *handler) Register(grpcServer *grpc.Server) {
+	pb.RegisterYlccServer(grpcServer, handler)
+}
+
+
 
 // Get video information
 func (h *handler) GetVideoInfo(ctx context.Context, request *pb.GetVideoInfoRequst) (*pb.GetVideoInfoResponse, error) {
@@ -43,6 +51,8 @@ func (s *server) GetRecentlyActiveLiveChat(ctx context.Context, request *pb.GetR
 func (s *server) GetCompressedLiveChat(ctx context.Context, request *pb.GetCompressedLiveChatRequest) (*pb.GetCompressedLiveChatResponse, error) {
 
 }
+
+
 
 func NewHandler(verbose bool, collecot *collector) (Handler) {
 	return &handler {

@@ -7,37 +7,82 @@ option go_package = "github.com/potix/ylcc/protocol";
 
 // The ylcc service definition.
 service ylcc {
-	// Get video information 
-	rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
-	// Start collect video
-	rpc StartCollectLiveChat (StartCollectLiveChatRequest) returns (StartCollectLiveChatResponse) {}
-	// Delete live Chat
-	rpc DeleteLiveChat (DeleteLiveChatRequest) returns (DeleteLiveChatResponse) {}
-	// Get recently active live chat of video
-	rpc GetRecentlyActiveLiveChat (GetRecentlyActiveLiveChatRequest) returns (GetRecentlyActiveLiveChatResponse) {}
-	// Get live chat of video
-	rpc GetLiveChat (GetLiveChatRequest) returns (stream GetLiveChatResponse) {}
+	// キャッシュされているvideo情報を返す
+	rpc GetVideo (GetVideoRequest) returns (GetVideoResponse) {}
+	// 配信中のライブチャットの収集を開始する
+	// 収集したメッセージはキャッシュされる
+	rpc StartCollectionActiveLiveChat (StartCollectionActiveLiveChatRequest) returns (StartCollectionActiveLiveChatResponse) {}
+	// 収集中のライブチャットのメッセージをリアルタイムに返す
+	rpc PollActiveLiveChat (PollActiveLiveChatRequest) returns (stream PollActiveLiveChatResponse) {}
+	// 収集後キャッシュしたライブチャットのメッセージを返す
+	// 収集中はエラーを返す
+	rpc GetCachedActiveLiveChat (GetCachedActiveLiveChatRequest) returns (GetCachedActiveLiveChatResponse) {}
+	// アーカイブのライブチャットの収集を開始する
+	rpc StartCollectionArchiveLiveChat (StartCollectionArchiveLiveChatRequest) returns (StartCollectionArchiveLiveChatResponse) {}
+	// アーカイブのライブチャットのメッセージを返す
+	// 収集中はエラーを返す
+	rpc GetArchiveLiveChat (GetArchiveLiveChatRequest) returns (GetArchiveLiveChatResponse) {}
 }
 
-message GetVideoInfoRequst {
+message GetVideoRequest {
+	 string videoId = 1;
+}
+
+message GetVideoResponse {
+	google.rpc.Status status = 1;
+        Video video = 2;
+}
+
+message StartCollectionActiveLiveChatRequest {
 	string videoId = 1;
 }
 
-message GetVideoInfoResponse {
+message StartCollectionActiveLiveChatResponse {
 	google.rpc.Status status = 1;
-	VidepInfo videoInfo = 2;
+	Video video = 2;
 }
 
-message StartCollectLiveChatRequest {
+message PollActiveLiveChatRequest {
 	string videoId = 1;
 }
 
-message StartCollectLiveChatResponse {
+message PollActiveLiveChatResponse {
 	google.rpc.Status status = 1;
-	VidepInfo videoInfo = 2;
+	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
 }
 
-message VidepInfo {
+message GetCachedActiveLiveChatRequest {
+	string videoId = 1;
+	string pageToken = 2;
+}
+
+message GetCachedActiveLiveChatResponse {
+	google.rpc.Status status = 1;
+	string nextPageToken = 2;
+	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
+}
+
+message StartCollectionArchiveLiveChatRequest {
+	string videoId = 1;
+}
+
+message StartCollectionArchiveLiveChatResponse {
+	google.rpc.Status status = 1;
+	Video video = 2;
+}
+
+message GetArchiveLiveChatRequest {
+	string videoId = 1;
+	string pageToken = 2;
+}
+
+message GetArchiveLiveChatResponse {
+	google.rpc.Status status = 1;
+	string nextPageToken = 2;
+	repeated ArchiveLiveChatMessage ArchiveLiveChatMessages = 3;
+}
+
+message Video {
 	string videoId = 1;
 	string channelId = 2;
 	string categoryId = 3; 
@@ -50,62 +95,33 @@ message VidepInfo {
         string actualEndTime = 10;
         string scheduledStartTime = 11;
         string scheduledEndTime = 12; 
-        string statusPrivacyStatus = 13;
-	string statusUploadStatus = 14;
-	string statusEmbeddable = 15;
-}
-
-message DeleteLiveChatRequest {
-	string videoId = 1;
-}
-
-message DeleteLiveChatResponse {
-	google.rpc.Status status = 1;
-	string errorMessage = 2;
-}
-
-message GetRecentlyActiveLiveChatRequest {
-	string videoId = 1;
-	uint32 maxMessages = 2;
-}
-
-message GetRecentlyActiveLiveChatResponse {
-	google.rpc.Status status = 1;
-	repeated ActiveLiveChatMessage activeLiveChatMessages = 2;
+        string privacyStatus = 13;
+	string uploadStatus = 14;
+	string embeddable = 15;
 }
 
 message ActiveLiveChatMessage {
 	string messageId = 1;
         string channelId = 2;
         string videoId = 3;
-	string liveChatMessageListResponseEtag = 4;
-	string authorChannelId = 5;
-	string authorChannelUrl = 6;
-	string authorDisplayName = 7;
-	string authorProfileImageUrl = 8;
-	string authorIsChatModerator = 9;
-	string authorIsChatOwner = 10;
-	string authorIsChatSponsor = 11;
-	string authorIsVerified = 12;
-	string liveChatId = 13;
-	string displayMessage = 14;
-	string messagePublishedAt = 15;
-	bool isSuperChat = 16;
-	string amountDisplayString = 17;
-	string currency = 18;
+	string apiEtag = 4;
+	string authorChannelId = 7;
+	string authorChannelUrl = 8;
+	string authorDisplayName = 9;
+	string authorProfileImageUrl = 10;
+	string authorIsChatModerator = 11;
+	string authorIsChatOwner = 12;
+	string authorIsChatSponsor = 13;
+	string authorIsVerified = 14;
+	string liveChatId = 15;
+	string displayMessage = 16;
+	string messagePublishedAt = 17;
+	bool isSuperChat = 18;
+	string amountDisplayString = 19;
+	string currency = 20;
 }
 
-message GetLiveChatRequest {
-	string videoId = 1;
-	uint32 maxBulkMessages = 2;
-}
-
-message GetLiveChatResponse {
-	google.rpc.Status status = 1;
-	repeated LiveChatMessage liveChatMessage  = 2;
-}
-
-message LiveChatMessage {
+message ArchiveLiveChatMessage {
         string messageId = 1;
         string channelId = 2;
         string videoId = 3;

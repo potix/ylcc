@@ -6,7 +6,6 @@ import (
         "net"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	pb "github.com/potix/ylcc/protocol"
 )
 
 // Server is server
@@ -21,7 +20,7 @@ type Server struct {
 type Handler insterface {
 	Start()
 	Stop()
-	pb.YlccServer
+	Register()
 }
 
 func (s *server) Start() {
@@ -44,16 +43,20 @@ func NewServer(verbose bool, addrPort string, tlsCertPath string, tlsKeyPath str
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen (addrPort = %v): %w", addrPort, err)
 	}
-	serverCred, err := credentials.NewServerTLSFromFile(tlsCertPath, tlsKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", tlsCertPath, tlsKeyPath, err)
+	if tlsCertPath != "" && tlsKeyPath != "" {
+		serverCred, err := credentials.NewServerTLSFromFile(tlsCertPath, tlsKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", tlsCertPath, tlsKeyPath, err)
+		}
+		grpcServer := grpc.NewServer(grpc.Creds(serverCred))
+	} else {
+		grpcServer := grpc.NewServer()
 	}
-	grpcServer := grpc.NewServer(grpc.Creds(serverCred))
+	handler.Register(grpcServer)
 	newServer := &server{
 		verbose: verbose,
 		listen: listen,
 		grpcServer: grpcServer,
 	}
-	pb.RegisterYlccServer(grpcServer, handler)
 	return newServer, nil
 }
