@@ -1,32 +1,14 @@
-package main
+package collector
 
 import (
-    //"log"
     "time"
     "fmt"
-    //"os"
     "context"
     "google.golang.org/api/option"
     "google.golang.org/api/transport/http"
     "google.golang.org/api/youtube/v3"
 
 )
-
-var (
-	storeMsgMax = 3000
-	analyzeMsgMax = 2000
-)
-
-
-//func createWordCloud(wordCounts map[string]int) {
-//	w := wordclouds.NewWordcloud(
-//		wordCounts,
-//		wordclouds.FontFile("VL-PGothic-Regular.ttf"),
-//		wordclouds.Height(480),
-//		wordclouds.Width(2048),
-//	)
-//	img := w.Draw()
-//}
 
 func main() {
 	messages :=  make([]string, 0, storeMsgMax)

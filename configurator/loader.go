@@ -1,7 +1,7 @@
 package configurator
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/BurntSushi/toml"
 )
 
@@ -12,7 +12,7 @@ type loader struct {
 func (l *loader) loadToml(config interface{}) (error) {
 	_, err := toml.DecodeFile(l.configFile, config)
 	if err != nil {
-		return errors.Wrapf(err, "can not decode config file for toml (%v)", l.configFile)
+		return fmt.Errorf("can not decode config file for toml (%v): %w", l.configFile, err)
 	}
 	return nil
 }
@@ -20,7 +20,7 @@ func (l *loader) loadToml(config interface{}) (error) {
 func (l *loader)load(config interface{}) (error) {
 	err := l.loadToml(config)
 	if err != nil {
-		return errors.Wrapf(err, "can not load config file (%v)", l.configFile)
+		return fmt.Errorf(err, "can not load config file (%v): %w", l.configFile, err)
 	}
 	return nil
 }

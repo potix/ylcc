@@ -4,20 +4,37 @@ import (
         "os"
         "strings"
         "io/ioutil"
-        "github.com/pkg/errors"
 )
 
 
 type collector struct {
 	verbose bool
 	apiKey  string
+
 }
+
+
+// startCollectリクエストを受け取った
+// リクエストを受け取ったらロックをかけてvideoId毎のprogressフラグを確認する
+// videoId毎のprogressフラグが立っている場合はリクエストエラーを返す
+// フラグが立ってない場合はフラグを立ててgoroutubeで処理を開始する
+// ロックを解除
+// goroutineで処理が終わったらロックしてprogress フラグを削除ロックを解除
+
+// 
+// dbのvideo情報をチェック
+// dbのvideo情報にactiveLiveChatIdがあり、APIにもactiveLiveChatIdがある
+// dbにvideo情報がある場合は
+// dbにvideo情報がある場合は
+
+
+
 
 func (c *collector) loopMain() {
         for {
                 select {
-                case <-time.After(time.Second):
-                        c.invokeMonitorGoroutine()
+		// チャンネル受け
+		case <- reqchan
                 case <-c.loopFinishResquestChan:
                         goto LAST
                 }

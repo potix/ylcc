@@ -1,92 +1,114 @@
 syntax = "proto3";
 
+import "code.proto";
+import "status.proto";
+
 option go_package = "github.com/potix/ylcc/protocol";
 
 // The ylcc service definition.
 service ylcc {
-  // Get video information 
-  rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
-  // StartMonitor video
-  rpc StartCollectLiveChat (StartCollectLiveChatRequest) returns (StartCollectLiveChatResponse) {}
-  // StopMonitor video
-  rpc StopCollectLiveChat (StopCollectLiveChatRequest) returns (StopCollectLiveChatResponse) {}
-  // Get recently live chat of video
-  rpc GetRecentlyLiveChat (GetRecentlyLiveChatRequest) returns (GetRecentlyLiveChatResponse) {}
-  // Get all live chat of video
-  rpc GetCompressedAllLiveChat (GetCompressedAllLiveChatRequest) returns (GetCompressedAllLiveChatResponse) {}
+	// Get video information 
+	rpc GetVideoInfo (GetVideoInfoRequst) returns (GetVideoInfoResponse) {}
+	// Start collect video
+	rpc StartCollectLiveChat (StartCollectLiveChatRequest) returns (StartCollectLiveChatResponse) {}
+	// Delete live Chat
+	rpc DeleteLiveChat (DeleteLiveChatRequest) returns (DeleteLiveChatResponse) {}
+	// Get recently active live chat of video
+	rpc GetRecentlyActiveLiveChat (GetRecentlyActiveLiveChatRequest) returns (GetRecentlyActiveLiveChatResponse) {}
+	// Get live chat of video
+	rpc GetLiveChat (GetLiveChatRequest) returns (stream GetLiveChatResponse) {}
 }
 
 message GetVideoInfoRequst {
-  string videoId = 1;
+	string videoId = 1;
 }
 
 message GetVideoInfoResponse {
-  bool exists = 1;
-  string videoId = 2;
-  string categoryId = 3; 
-  string channelId = 4;
-  string channelTitle = 5;  
-  string Description = 6;
-  string activeLiveChatId = 7;
+	google.rpc.Status status = 1;
+	string videoId = 2;
+	string categoryId = 3; 
+	string channelId = 4;
+	string channelTitle = 5;  
+	string Description = 6;
+	string activeLiveChatId = 7;
 }
 
 message StartCollectLiveChatRequest {
-  string videoId = 1;
+	string videoId = 1;
 }
 
 message StartCollectLiveChatResponse {
-  bool success = 1;
-  string videoId = 2;
-  string categoryId = 3; 
-  string channelId = 4;
-  string channelTitle = 5;  
-  string Description = 6;
-  string activeLiveChatId = 7;
+	google.rpc.Status status = 1;
+	string videoId = 2;
+	string categoryId = 3; 
+	string channelId = 4;
+	string title = 5;  
+	string description = 6;
+	string publishedAt = 7;
+	string activeLiveChatId = 8;
 }
 
-message StopCollectLiveChatRequest {
-  string videoId = 1;
+message DeleteLiveChatRequest {
+	string videoId = 1;
 }
 
-message StopCollectLiveChatResponse {
-  bool success = 1;
+message DeleteLiveChatResponse {
+	google.rpc.Status status = 1;
+	string errorMessage = 2;
 }
 
-message GetRecentlyLiveChatRequest {
-  string videoId = 1;
-  uint32 maxMessages = 2;
+message GetRecentlyActiveLiveChatRequest {
+	string videoId = 1;
+	uint32 maxMessages = 2;
 }
 
-message GetRecentlyLiveChatResponse {
-  bool exists = 1;
-  repeated GetVideoLiveChatMessage liveChatMessages = 2;
+message GetRecentlyActiveLiveChatResponse {
+	google.rpc.Status status = 1;
+	repeated ActiveLiveChatMessage activeLiveChatMessages = 2;
 }
 
-message GetVideoLiveChatMessage {
-  bool exists = 1;
-  string liveChatMessageListResponseEtag = 2;
-  string messageId = 3;
-  string authorChannelId = 4;
-  string authorIsChatModerator = 5;
-  string authorIsChatOwner = 6;
-  string authorIsChatSponsor = 7;
-  string authorIsVerified = 8;
-  string liveChatId = 9;
-  string displayMessage = 10;
-  string messagePublishedAt = 11;
-  bool isSuperChat = 12;
-  string amountDisplayString = 13;
-  string currency = 14;
+message ActiveLiveChatMessage {
+	string liveChatMessageListResponseEtag = 1;
+	string messageId = 2;
+	string authorChannelId = 3;
+	string authorChannelUrl = 4;
+	string authorDisplayName = 5;
+	string authorProfileImageUrl = 6;
+	string authorIsChatModerator = 7;
+	string authorIsChatOwner = 8;
+	string authorIsChatSponsor = 9;
+	string authorIsVerified = 10;
+	string liveChatId = 11;
+	string displayMessage = 12;
+	string messagePublishedAt = 13;
+	bool isSuperChat = 14;
+	string amountDisplayString = 15;
+	string currency = 16;
 }
 
-message GetCompressedAllLiveChatRequest {
-  string videoId = 1;
+message GetLiveChatRequest {
+	string videoId = 1;
+	uint32 maxBulkMessages = 2;
 }
 
-message GetCompressedAllLiveChatResponse {
-  bool exists = 1;
-  // compressed data of json string
-  bytes compressedLiveChatmessages = 2;
+message GetLiveChatResponse {
+	google.rpc.Status status = 1;
+	repeated LiveChatMessage liveChatMessage  = 2;
 }
+
+message LiveChatMessage {
+        string MessageId = 1;
+        string ChannelId = 2;
+        string ClientId  = 3;
+        string TimestampUsec = 4;
+        string AuthorName = 5;
+        string AuthorPhotoUrlThumbnails = 6;
+        string MessageText = 7;
+        string PurchaseAmountText = 8;
+        string VideoOffsetTimeMsec = 9;
+}
+
+
+
 
 

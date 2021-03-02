@@ -1,5 +1,9 @@
 package server
 
+import (
+	pb "github.com/potix/ylcc/protocol"
+)
+
 type handler struct {
 	verbose   bool
 	collector *collector
@@ -16,27 +20,27 @@ func (h *handler) Stop() {
 }
 
 // Get video information
-func (h *handler) GetVideoInfo(ctx context.Context, request *GetVideoInfoRequst) (*GetVideoInfoResponse, error) {
+func (h *handler) GetVideoInfo(ctx context.Context, request *pb.GetVideoInfoRequst) (*pb.GetVideoInfoResponse, error) {
 
 }
 
 // Start collect live chat
-func (h *handler) StartCollectLiveChat(ctx context.Context, request *StartCollectLiveChatRequest) (*StartCollectLiveChatResponse, error) {
+func (h *handler) StartCollectLiveChat(ctx context.Context, request *pb.StartCollectLiveChatRequest) (*pb.StartCollectLiveChatResponse, error) {
 
 }
 
-// Stop collect live chat
-func (h *handler) StopCollectLiveChat(ctx context.Context, request *StopCollectLiveChatRequest) (*StopCollectLiveChatResponse, error) {
+// delete live chat
+func (h *handler) DeleteLiveChat(ctx context.Context, request *pb.StopCollectLiveChatRequest) (*pb.DeleteLiveChatResponse, error) {
 
 }
 
 // Get recently live chat of video
-func (s *server) GetRecentlyLiveChat(ctx context.Context, request *GetRecentlyLiveChatRequest) (*GetRecentlyLiveChatResponse, error) {
+func (s *server) GetRecentlyActiveLiveChat(ctx context.Context, request *pb.GetRecentlyLiveChatRequest) (*pb.GetRecentlyActiveLiveChatResponse, error) {
 
 }
 
 // Get all live chat of video
-func (s *server) GetCompressedAllLiveChat(ctx context.Context, request *GetCompressedAllLiveChatRequest) (*GetCompressedAllLiveChatResponse, error) {
+func (s *server) GetCompressedLiveChat(ctx context.Context, request *pb.GetCompressedLiveChatRequest) (*pb.GetCompressedLiveChatResponse, error) {
 
 }
 

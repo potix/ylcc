@@ -44,7 +44,7 @@ func verboseLoadedConfig(loadedConfig *ylccConfig) {
         }
         j, err := json.Marshal(loadedConfig)
         if err != nil {
-                log.Printf("can not dump config (%v)", err)
+		log.Printf("can not dump config: %v", err)
                 return
         }
         log.Printf("loaded config: %v", string(j))
@@ -77,8 +77,8 @@ func main() {
         flag.BoolVar(&cmdArgs.verbose, "verbose", false, "verbose")
         flag.Parse()
         cf, err := configurator.NewConfigurator(cmdArgs.configFile)
-        conf := &ylccConfig{}
-        err = cf.Load(conf)
+        var conf ylccConfig
+        err = cf.Load(&conf)
         if err != nil {
                 log.Fatalf("can not load config: %v", err)
         }

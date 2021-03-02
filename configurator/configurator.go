@@ -2,7 +2,7 @@ package configurator
 
 import (
         "os"
-	"github.com/pkg/errors"
+	"fmt"
 )
 
 // Configurator is configrator
@@ -19,7 +19,7 @@ func (c *Configurator) Load(config interface{}) (error) {
 func validateConfigFile(configFile string) (error) {
         f, err := os.Open(configFile)
         if err != nil {
-            return errors.Wrapf(err, "can not open config file (%v)", configFile)
+		return fmt.Errorf("can not open config file (%v): %w", configFile, err)
         }
         f.Close()
         return nil
@@ -29,7 +29,7 @@ func validateConfigFile(configFile string) (error) {
 func NewConfigurator(configFile string) (*Configurator, error) {
 	err := validateConfigFile(configFile)
 	if (err != nil) {
-		return nil, errors.Wrapf(err, "invalid config file (%v)", configFile)
+		return nil, fmt.Errorf("invalid config file (%v): %w", configFile, err)
 	}
 	newConfigurator := &Configurator{
              loader: newLoader(configFile),
