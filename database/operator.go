@@ -1081,88 +1081,64 @@ func (d *DatabaseOperator) createTables() (error) {
                 title                        TEXT NOT NULL,
                 description                  TEXT NOT NULL,
 		publishdAt                   TEXT NOT NULL,
-		activeLiveChatId             TEXT NOT NULL,
 		duration                     TEXT NOT NULL,
+		liveStreamActiveLiveChatId   TEXT NOT NULL,
+		liveStreamActualStartTime    TEXT NOT NULL,
+		liveStreamActualEndtime      TEXT NOT NULL,
+		liveStreamScheduledStartTime TEXT NOT NULL,
+		liveStreamScheduledEndTime   TEXT NOT NULL,
+		statusPrivacyStatus          TEXT NOT NULL,   
+		statusUploadStatus           TEXT NOT NULL,
+		statusEmbeddable             TEXT NOT NULL,
+
 	)`
 	_, err = d.db.Exec(videoTableCreateQuery);
 	if  err != nil {
 		return errors.Wrap(err, "can not create video table")
 	}
 
-        commentThreadTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS commentThread (
-                commentThreadId       TEXT PRIMARY KEY,
-                etag                  TEXT NOT NULL,
-		name                  TEXT NOT NULL,
-		channelId             TEXT NOT NULL,
-		videoId               TEXT NOT NULL,
-		responseEtag          TEXT NOT NULL
+        activeLiveChatCommentTableCreateQuery := `
+            CREATE TABLE IF NOT EXISTS activeLiveChatComment (
+                messageId                       TEXT PRIMARY KEY,
+		channelId                       TEXT NOT NULL,
+		videoId                         TEXT NOT NULL,
+		liveChatMessageListResponseEtag TEXT NOT NULL,
+		authorChannelId                 TEXT NOT NULL,
+		authorChannelUrl                TEXT NOT NULL,
+		authorDisplayName               TEXT NOT NULL,
+		authorProfileImageUrl           TEXT NOT NULL,
+		authorIsChatModerator           TEXT NOT NULL,
+		authorIsChatOwner               TEXT NOT NULL,
+		authorIsChatSponsor             TEXT NOT NULL,
+		authorIsVerified                TEXT NOT NULL,
+		liveChatId                      TEXT NOT NULL,
+		displayMessage                  TEXT NOT NULL,
+		messagePublishedAt              TEXT NOT NULL,
+		isSuperChat                     TEXT NOT NULL,
+		amountDisplayString             TEXT NOT NULL,
+		currency                        TEXT NOT NULL,
 	)`
-	_, err = d.db.Exec(commentThreadTableCreateQuery);
+	_, err = d.db.Exec(liveChatCommentTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create commentThread table")
+		return errors.Wrap(err, "can not create activeLiveChatComment table")
 	}
-
-        topLevelCommentTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS topLevelComment (
-                commentId             TEXT PRIMARY KEY,
-                etag                  TEXT NOT NULL,
-		channelId             TEXT NOT NULL,
-		videoId               TEXT NOT NULL,
-		commentThreadId       TEXT NOT NULL,
-		authorChannelUrl      TEXT NOT NULL,
-		authorDisplayName     TEXT NOT NULL,
-		authorProfileImageUrl TEXT NOT NULL,
-		moderationStatus      TEXT NOT NULL,
-		textDisplay           TEXT NOT NULL,
-		textOriginal          TEXT NOT NULL,
-		publishAt             TEXT NOT NULL,
-		updateAt              TEXT NOT NULL
-	)`
-	_, err = d.db.Exec(topLevelCommentTableCreateQuery);
-	if err != nil {
-		return errors.Wrap(err, "can not create topLevelComment table")
-	}
-	topLevelCommentTextOriginalIndexQuery := `CREATE INDEX IF NOT EXISTS topLevelComment_textOriginal_index ON topLevelComment(textOriginal)`
-	_, err = d.db.Exec(topLevelCommentTextOriginalIndexQuery);
-	if err != nil {
-		return errors.Wrap(err, "can not create topLevelComment_textOriginal_index index")
-	}
-
-        replyCommentTableCreateQuery := `
-            CREATE TABLE IF NOT EXISTS replyComment (
-                commentId             TEXT PRIMARY KEY,
-                etag                  TEXT NOT NULL,
-		channelId             TEXT NOT NULL,
-		videoId               TEXT NOT NULL,
-		commentThreadId       TEXT NOT NULL,
-		parentId              TEXT NOT NULL, 
-		authorChannelUrl      TEXT NOT NULL,
-		authorDisplayName     TEXT NOT NULL,
-		authorProfileImageUrl TEXT NOT NULL,
-		moderationStatus      TEXT NOT NULL,
-		textDisplay           TEXT NOT NULL,
-		textOriginal          TEXT NOT NULL,
-		publishAt             TEXT NOT NULL,
-		updateAt              TEXT NOT NULL
-	)`
-	_, err = d.db.Exec(replyCommentTableCreateQuery);
+        liveChatCommentVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_videoId_index ON liveChatComment(videoId)`
+	_, err = d.db.Exec(liveChatCommentVideoIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create replyComment table")
+		return errors.Wrap(err, "can not create liveChatComment_videoId_index index")
 	}
-	replyCommentTextOriginalIndexQuery := `CREATE INDEX IF NOT EXISTS replyComment_textOriginal_index ON replyComment(textOriginal)`
-	_, err = d.db.Exec(replyCommentTextOriginalIndexQuery);
-	if err != nil {
-		return errors.Wrap(err, "can not create replyComment_textOriginal_index index")
+        liveChatCommentChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS liveChatComment_channelId_index ON liveChatComment(channelId)`
+	_, err = d.db.Exec(liveChatCommentChannelIdIndexQuery);
+	if  err != nil {
+		return errors.Wrap(err, "can not create liveChatComment_channelId_index index")
 	}
 
         liveChatCommentTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS liveChatComment (
-                uniqueId            TEXT PRIMARY KEY,
+		messageId           TEXT PRIMARY KEY,
 		channelId           TEXT NOT NULL,
 		videoId             TEXT NOT NULL,
 		clientId            TEXT NOT NULL,
-		messageId           TEXT NOT NULL, 
 		timestampAt         TEXT NOT NULL,
 		timestampText       TEXT NOT NULL,
 		authorName          TEXT NOT NULL,

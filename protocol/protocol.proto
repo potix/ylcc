@@ -25,12 +25,7 @@ message GetVideoInfoRequst {
 
 message GetVideoInfoResponse {
 	google.rpc.Status status = 1;
-	string videoId = 2;
-	string categoryId = 3; 
-	string channelId = 4;
-	string channelTitle = 5;  
-	string Description = 6;
-	string activeLiveChatId = 7;
+	VidepInfo videoInfo = 2;
 }
 
 message StartCollectLiveChatRequest {
@@ -39,13 +34,25 @@ message StartCollectLiveChatRequest {
 
 message StartCollectLiveChatResponse {
 	google.rpc.Status status = 1;
-	string videoId = 2;
+	VidepInfo videoInfo = 2;
+}
+
+message VidepInfo {
+	string videoId = 1;
+	string channelId = 2;
 	string categoryId = 3; 
-	string channelId = 4;
-	string title = 5;  
-	string description = 6;
-	string publishedAt = 7;
+	string title = 4;  
+	string description = 5;
+	string publishedAt = 6;
+	string duration = 7;
 	string activeLiveChatId = 8;
+        string actualStartTime = 9;
+        string actualEndTime = 10;
+        string scheduledStartTime = 11;
+        string scheduledEndTime = 12; 
+        string statusPrivacyStatus = 13;
+	string statusUploadStatus = 14;
+	string statusEmbeddable = 15;
 }
 
 message DeleteLiveChatRequest {
@@ -68,22 +75,24 @@ message GetRecentlyActiveLiveChatResponse {
 }
 
 message ActiveLiveChatMessage {
-	string liveChatMessageListResponseEtag = 1;
-	string messageId = 2;
-	string authorChannelId = 3;
-	string authorChannelUrl = 4;
-	string authorDisplayName = 5;
-	string authorProfileImageUrl = 6;
-	string authorIsChatModerator = 7;
-	string authorIsChatOwner = 8;
-	string authorIsChatSponsor = 9;
-	string authorIsVerified = 10;
-	string liveChatId = 11;
-	string displayMessage = 12;
-	string messagePublishedAt = 13;
-	bool isSuperChat = 14;
-	string amountDisplayString = 15;
-	string currency = 16;
+	string messageId = 1;
+        string channelId = 2;
+        string videoId = 3;
+	string liveChatMessageListResponseEtag = 4;
+	string authorChannelId = 5;
+	string authorChannelUrl = 6;
+	string authorDisplayName = 7;
+	string authorProfileImageUrl = 8;
+	string authorIsChatModerator = 9;
+	string authorIsChatOwner = 10;
+	string authorIsChatSponsor = 11;
+	string authorIsVerified = 12;
+	string liveChatId = 13;
+	string displayMessage = 14;
+	string messagePublishedAt = 15;
+	bool isSuperChat = 16;
+	string amountDisplayString = 17;
+	string currency = 18;
 }
 
 message GetLiveChatRequest {
@@ -97,15 +106,16 @@ message GetLiveChatResponse {
 }
 
 message LiveChatMessage {
-        string MessageId = 1;
-        string ChannelId = 2;
-        string ClientId  = 3;
-        string TimestampUsec = 4;
-        string AuthorName = 5;
-        string AuthorPhotoUrlThumbnails = 6;
-        string MessageText = 7;
-        string PurchaseAmountText = 8;
-        string VideoOffsetTimeMsec = 9;
+        string messageId = 1;
+        string channelId = 2;
+        string videoId = 3;
+        string timestampUsec = 4;
+        string clientId  = 5;
+        string authorName = 6;
+        string authorPhotoUrlThumbnails = 7;
+        string messageText = 8;
+        string purchaseAmountText = 9;
+        string videoOffsetTimeMsec = 10;
 }
 
 
