@@ -1,8 +1,4 @@
 syntax = "proto3";
-
-import "code.proto";
-import "status.proto";
-
 option go_package = "github.com/potix/ylcc/protocol";
 
 // The ylcc service definition.
@@ -24,12 +20,25 @@ service ylcc {
 	rpc GetArchiveLiveChat (GetArchiveLiveChatRequest) returns (GetArchiveLiveChatResponse) {}
 }
 
+enum Code {
+	SUCCESS = 0;
+	NOT_FOUND = 1;
+	NOT_PERMITTED = 2;
+	IN_PROGRESS = 3;
+	INTERNAL_ERROR = 4;
+}
+
+message Status {
+	Code code = 1;
+	string message = 2;
+}
+
 message GetVideoRequest {
 	 string videoId = 1;
 }
 
 message GetVideoResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
         Video video = 2;
 }
 
@@ -38,7 +47,7 @@ message StartCollectionActiveLiveChatRequest {
 }
 
 message StartCollectionActiveLiveChatResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
 	Video video = 2;
 }
 
@@ -47,7 +56,7 @@ message PollActiveLiveChatRequest {
 }
 
 message PollActiveLiveChatResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
 	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
 }
 
@@ -57,7 +66,7 @@ message GetCachedActiveLiveChatRequest {
 }
 
 message GetCachedActiveLiveChatResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
 	string nextPageToken = 2;
 	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
 }
@@ -67,7 +76,7 @@ message StartCollectionArchiveLiveChatRequest {
 }
 
 message StartCollectionArchiveLiveChatResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
 	Video video = 2;
 }
 
@@ -77,7 +86,7 @@ message GetArchiveLiveChatRequest {
 }
 
 message GetArchiveLiveChatResponse {
-	google.rpc.Status status = 1;
+	Status status = 1;
 	string nextPageToken = 2;
 	repeated ArchiveLiveChatMessage ArchiveLiveChatMessages = 3;
 }

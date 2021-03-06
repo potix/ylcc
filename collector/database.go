@@ -15,53 +15,9 @@ type DatabaseOperator struct {
 	verbose      bool
 }
 
-type Video struct {
-	VideoId            string
-	ChannelId          string
-	CategoryId         string
-	Title              string
-	Description        string
-	PublishdAt         string
-	Duration           string
-        ActiveLiveChatId   string
-        ActualStartTime    string
-        ActualEndTime      string
-        ScheduledStartTime string
-        ScheduledEndTime   string
-        PrivacyStatus      string
-        UploadStatus       string
-        Embeddable         bool
-}
 
-type ActiveLiveChatMessage struct {
-	UniqueId            string
-	ChannelId           string
-	VideoId             string
-	ClientId            string
-	MessageId           string
-	TimestampAt         string
-	TimestampText       string
-	AuthorName          string
-	AuthorPhotoUrl      string
-	MessageText         string
-	PurchaseAmountText  string
-	VideoOffsetTimeMsec string
-}
 
-type LiveChatMessage struct {
-	UniqueId            string
-	ChannelId           string
-	VideoId             string
-	ClientId            string
-	MessageId           string
-	TimestampAt         string
-	TimestampText       string
-	AuthorName          string
-	AuthorPhotoUrl      string
-	MessageText         string
-	PurchaseAmountText  string
-	VideoOffsetTimeMsec string
-}
+
 
 
 
@@ -1011,24 +967,35 @@ func (d *DatabaseOperator) GetChannelPageByChannelId(channelId string) (*Channel
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 func (d *DatabaseOperator) createTables() (error) {
         videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS video (
-                videoId                      TEXT PRIMARY KEY,
-		categoryId                   TEXT NOT NULL
-                channelId                    TEXT NOT NULL,
-                title                        TEXT NOT NULL,
-                description                  TEXT NOT NULL,
-		publishdAt                   TEXT NOT NULL,
-		duration                     TEXT NOT NULL,
-		liveStreamActiveLiveChatId   TEXT NOT NULL,
-		liveStreamActualStartTime    TEXT NOT NULL,
-		liveStreamActualEndtime      TEXT NOT NULL,
-		liveStreamScheduledStartTime TEXT NOT NULL,
-		liveStreamScheduledEndTime   TEXT NOT NULL,
-		statusPrivacyStatus          TEXT NOT NULL,
-		statusUploadStatus           TEXT NOT NULL,
-		statusEmbeddable             TEXT NOT NULL,
+                videoId            TEXT PRIMARY KEY,
+		categoryId         TEXT NOT NULL
+                channelId          TEXT NOT NULL,
+                title              TEXT NOT NULL,
+                description        TEXT NOT NULL,
+		publishdAt         TEXT NOT NULL,
+		duration           TEXT NOT NULL,
+		activeLiveChatId   TEXT NOT NULL,
+		actualStartTime    TEXT NOT NULL,
+		actualEndtime      TEXT NOT NULL,
+		scheduledStartTime TEXT NOT NULL,
+		scheduledEndTime   TEXT NOT NULL,
+		privacyStatus      TEXT NOT NULL,
+		uploadStatus       TEXT NOT NULL,
+		embeddable         TEXT NOT NULL,
 
 	)`
 	_, err = d.db.Exec(videoTableCreateQuery);
@@ -1038,26 +1005,26 @@ func (d *DatabaseOperator) createTables() (error) {
 
         activeLiveChatMessageTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS activeLiveChatMessage (
-                messageId                       TEXT PRIMARY KEY,
-		channelId                       TEXT NOT NULL,
-		videoId                         TEXT NOT NULL,
-		apiEtag                         TEXT NOT NULL,
-		pageToken                       TEXT NOT NULL,
-		nextPageTolken                  TEXT NOT NULL,
-		authorChannelId                 TEXT NOT NULL,
-		authorChannelUrl                TEXT NOT NULL,
-		authorDisplayName               TEXT NOT NULL,
-		authorProfileImageUrl           TEXT NOT NULL,
-		authorIsChatModerator           TEXT NOT NULL,
-		authorIsChatOwner               TEXT NOT NULL,
-		authorIsChatSponsor             TEXT NOT NULL,
-		authorIsVerified                TEXT NOT NULL,
-		liveChatId                      TEXT NOT NULL,
-		displayMessage                  TEXT NOT NULL,
-		messagePublishedAt              TEXT NOT NULL,
-		isSuperChat                     TEXT NOT NULL,
-		amountDisplayString             TEXT NOT NULL,
-		currency                        TEXT NOT NULL,
+                messageId             TEXT PRIMARY KEY,
+		channelId             TEXT NOT NULL,
+		videoId               TEXT NOT NULL,
+		apiEtag               TEXT NOT NULL,
+		pageToken             TEXT NOT NULL,
+		nextPageTolken        TEXT NOT NULL,
+		authorChannelId       TEXT NOT NULL,
+		authorChannelUrl      TEXT NOT NULL,
+		authorDisplayName     TEXT NOT NULL,
+		authorProfileImageUrl TEXT NOT NULL,
+		authorIsChatModerator TEXT NOT NULL,
+		authorIsChatOwner     TEXT NOT NULL,
+		authorIsChatSponsor   TEXT NOT NULL,
+		authorIsVerified      TEXT NOT NULL,
+		liveChatId            TEXT NOT NULL,
+		displayMessage        TEXT NOT NULL,
+		messagePublishedAt    TEXT NOT NULL,
+		isSuperChat           TEXT NOT NULL,
+		amountDisplayString   TEXT NOT NULL,
+		currency              TEXT NOT NULL,
 	)`
 	_, err = d.db.Exec(avtiveLiveChatMessageTableCreateQuery);
 	if  err != nil {

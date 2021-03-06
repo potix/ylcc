@@ -25,32 +25,78 @@ func (h *handler) Register(grpcServer *grpc.Server) {
 	pb.RegisterYlccServer(grpcServer, handler)
 }
 
+func (h *handler) GetVideo(ctx context.Context, request *pb.GetVideoRequest, opts ...grpc.CallOption) (*pb.GetVideoResponse, error) {
+	video, err := g.controller.getVideo(request.VideoId)
+	return &pb.GetVideoResponse{
+		Status : &pb.Status{
+			Code: Code_SUCCESS,
+			Mesage: "success"
+		}
+		Video : &pb.Video{
+			VideoId: video.VideoId,
+			ChannelId: video.channelId
+			CategoryId: video.CategoryId,
+			Title:
+			Description:
+			PublishedAt:
+			Duration:
+			ActiveLiveChatId:
+			ActualStartTime:
+			ActualEndTime:
+			ScheduledStartTime:
+			ScheduledEndTime:
+			PrivacyStatus:
+			UploadStatus:
+			Embeddable:
+		}
+	}, nil
+}
 
-
-// Get video information
-func (h *handler) GetVideoInfo(ctx context.Context, request *pb.GetVideoInfoRequst) (*pb.GetVideoInfoResponse, error) {
+func (h *handler) StartCollectionActiveLiveChat(ctx context.Context, request *pb.StartCollectionActiveLiveChatRequest, opts ...grpc.CallOption) (*pb.StartCollectionActiveLiveChatResponse, error) {
+	video, err := g.controller.startCollectionActiveLiveChat(request.VideoId)
+	return &pb.GetVideoResponse{
+		Status : &pb.Status{
+			Code:
+			Mesage:
+		}
+		Video : &pb.Video{
+			VideoId:
+			ChannelId:
+			CategoryId:
+			Title:
+			Description:
+			PublishedAt:
+			Duration:
+			ActiveLiveChatId:
+			ActualStartTime:
+			ActualEndTime:
+			ScheduledStartTime:
+			ScheduledEndTime:
+			PrivacyStatus:
+			UploadStatus:
+			Embeddable:
+		}
+	}, nil
 
 }
 
-// Start collect live chat
-func (h *handler) StartCollectLiveChat(ctx context.Context, request *pb.StartCollectLiveChatRequest) (*pb.StartCollectLiveChatResponse, error) {
+func (h *handler) PollActiveLiveChat(ctx context.Context, request *pb.PollActiveLiveChatRequest, opts ...grpc.CallOption) (pb.Ylcc_PollActiveLiveChatClient, error) {
+
 
 }
 
-// delete live chat
-func (h *handler) DeleteLiveChat(ctx context.Context, request *pb.StopCollectLiveChatRequest) (*pb.DeleteLiveChatResponse, error) {
+func (h *handler) GetCachedActiveLiveChat(ctx context.Context, request *pb.GetCachedActiveLiveChatRequest, opts ...grpc.CallOption) (*pb.GetCachedActiveLiveChatResponse, error) {
 
 }
 
-// Get recently live chat of video
-func (s *server) GetRecentlyActiveLiveChat(ctx context.Context, request *pb.GetRecentlyLiveChatRequest) (*pb.GetRecentlyActiveLiveChatResponse, error) {
+func (h *handler) StartCollectionArchiveLiveChat(ctx context.Context, request *pb.StartCollectionArchiveLiveChatRequest, opts ...grpc.CallOption) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 
 }
 
-// Get all live chat of video
-func (s *server) GetCompressedLiveChat(ctx context.Context, request *pb.GetCompressedLiveChatRequest) (*pb.GetCompressedLiveChatResponse, error) {
+func (h *handler) GetArchiveLiveChat(ctx context.Context, request *pb.GetArchiveLiveChatRequest, opts ...grpc.CallOption) (*pb.GetArchiveLiveChatResponse, error) {
 
 }
+
 
 
 
