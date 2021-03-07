@@ -15,12 +15,12 @@ import (
         "github.com/potix/ylcc/server"
 )
 
-type ylccYoutubeConfig struct {
-        APIKeyFile      string            `toml:"apiKeyFile"`
-        PermitChannels  map[string]string `toml:"permitChannels"`
+type ylccCollectorConfig struct {
+        ApiKeyFile  string `toml:"apiKeyFile"`
+	DatabsePath string `toml:"databasePath"`
 }
 
-type ylccWebConfig struct {
+type ylccServerConfig struct {
         AddrPort    string `toml:"addrPort"`
         TlsCertPath string `toml:"tlsCertPath"`
         TlsKeyPath  string `toml:"tlsKeyPath"`
@@ -31,11 +31,10 @@ type ylccLogConfig struct {
 }
 
 type ylccConfig struct {
-	Verbose  bool                  `toml:"verbose"`
-        Youtube  *clipperYoutubeConfig `toml:"youtube"`
-        Web      *clipperWebConfig     `toml:"web"`
-        Cache    *clipperCacheConfig   `toml:"cache"`
-        Log      *clipperLogConfig     `toml:"log"`
+	Verbose   bool                    `toml:"verbose"`
+        Collector *clipperCollectorConfig `toml:"collector"`
+        Server    *clipperServerConfig    `toml:"server"`
+        Log       *clipperLogConfig       `toml:"log"`
 }
 
 func verboseLoadedConfig(loadedConfig *ylccConfig) {
@@ -90,13 +89,14 @@ func main() {
                 log.SetOutput(logger)
         }
         verboseLoadedConfig(conf)
-	apiKeys, err := configurator.LoadSecetFile(conf.Youtube.APIKeyFile)
+	apiKeys, err := configurator.LoadSecetFile(conf.collector.ApiKeyFile)
 	if err != nil {
-                log.Fatalf("can not load secret file: %v", conf.Youtube.APIKeyFile)
+                log.Fatalf("can not load secret file: %v", conf.collector.ApiKeyFile)
 	}
 	newCollector := collector.NewCollector(
 		conf.Verbose,
 		apiKeys,
+		conf.Collector.DatabasePath,
 	)
 	newHandler := handler.NewHandler(
 		conf.Verbose,
@@ -104,9 +104,9 @@ func main() {
 	)
         newServer := server.NewServer(
 		conf.Verbose,
-		conf.Web.AddrPort,
-		conf.Web.TlsCertPath,
-		conf.Web.TlsKeyPath,
+		conf.Server.AddrPort,
+		conf.Server.TlsCertPath,
+		conf.Server.TlsKeyPath,
 		newHandler,
 	)
 	newServer.Start()

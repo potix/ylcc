@@ -1,4 +1,4 @@
-package database
+package collector
 
 import (
         "os"
@@ -10,9 +10,9 @@ import (
 )
 
 type DatabaseOperator struct {
+	verbose      bool
         databasePath string
         db           *sql.DB
-	verbose      bool
 }
 
 func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, error) {
@@ -471,7 +471,7 @@ func (d *DatabaseOperator) Close()  {
         d.db.Close()
 }
 
-func NewDatabaseOperator(databasePath string, verbose bool) (*DatabaseOperator, error) {
+func NewDatabaseOperator(verbose bool, databasePath string) (*DatabaseOperator, error) {
         if databasePath == "" {
                 return nil, errors.New("no database path")
         }
@@ -484,8 +484,8 @@ func NewDatabaseOperator(databasePath string, verbose bool) (*DatabaseOperator, 
                 }
         }
         return &DatabaseOperator{
+		verbose: verbose,
                 databasePath: databasePath,
                 db: nil,
-		verbose: verbose,
         }, nil
 }

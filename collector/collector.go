@@ -30,6 +30,48 @@ type collector struct {
 
 
 
+func (h *handler) GetVideo(ctx context.Context, request *GetVideoRequest) (*GetVideoResponse, error) {
+        return h.collector.GetVideo(request)
+}
+
+func (h *handler) StartCollectionActiveLiveChat(ctx context.Context, request *StartCollectionActiveLiveChatRequest) (*StartCollectionActiveLiveChatResponse, error) {
+        return h.collector.StartCollectionActiveLiveChat(request)
+}
+
+func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server Ylcc_PollActiveLiveChatServer) (error)
+{
+        myCh := make(chan *PollActiveLiveChatResponse)
+        h.collector.PollActiveLiveChatSubscribe(myCh, request)
+        defer h.collector.PollActiveLiveChatUnsubscribe(myCh)
+        for {
+                select {
+                case response <-myCh:
+                        err := server.Send(response)
+                        if err != nil {
+                                return fmt.Errorf("can not send response: %w", err)
+                        }
+                default:
+                        return fmt.Errorf("can not read channnel. probably closed channel.")
+                }
+        }
+}
+
+func (h *handler) GetCachedActiveLiveChat(ctx context.Context, server *GetCachedActiveLiveChatRequest) (*GetCachedActiveLiveChatResponse, error) {
+        return h.collector.GetCachedActiveLiveChat(request)
+}
+
+func (h *handler) StartCollectionArchiveLiveChat(ctx context.Context, request *StartCollectionArchiveLiveChatRequest) (*StartCollectionArchiveLiveChatResponse, error) {
+        return h.collector.StartCollectionArchiveLiveChat(request)
+}
+
+func (h *handler) GetArchiveLiveChat(ctx context.Context, request *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error) {
+        return h.collector.GetArchiveLiveChat(request)
+}
+
+
+
+
+
 func (c *collector) loopMain() {
         for {
                 select {
@@ -53,10 +95,11 @@ func (c *collector) Stop() {
         <-c.;oopFinishResponseChan
 }
 
-func NewCollector(verbose bool, apiKeys []string) (*Searcher, error) {
+func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Searcher, error) {
 	if len(apiKeys) != 1 {
 		return fmt.Errorf("no api key")
 	}
+	databaseOperator := NewDatabaseOperator(verbose, databasePath)
 	return &collector {
 		 apiKey: apiKeys[0],
 		 verbose bool,
