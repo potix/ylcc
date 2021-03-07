@@ -114,20 +114,19 @@ message ActiveLiveChatMessage {
         string channelId = 2;
         string videoId = 3;
 	string apiEtag = 4;
-	string authorChannelId = 7;
-	string authorChannelUrl = 8;
-	string authorDisplayName = 9;
-	string authorProfileImageUrl = 10;
-	string authorIsChatModerator = 11;
-	string authorIsChatOwner = 12;
-	string authorIsChatSponsor = 13;
-	string authorIsVerified = 14;
-	string liveChatId = 15;
-	string displayMessage = 16;
-	string messagePublishedAt = 17;
-	bool isSuperChat = 18;
-	string amountDisplayString = 19;
-	string currency = 20;
+	string authorChannelId = 5;
+	string authorChannelUrl = 6;
+	string authorDisplayName = 7;
+	string authorIsChatModerator = 8;
+	string authorIsChatOwner = 9;
+	string authorIsChatSponsor = 10;
+	string authorIsVerified = 11;
+	string liveChatId = 12;
+	string displayMessage = 13;
+	string publishedAt = 14;
+	bool isSuperChat = 15;
+	string amountDisplayString = 16;
+	string currency = 17;
 }
 
 message ArchiveLiveChatMessage {
@@ -137,10 +136,9 @@ message ArchiveLiveChatMessage {
         string timestampUsec = 4;
         string clientId  = 5;
         string authorName = 6;
-        string authorPhotoUrlThumbnails = 7;
-        string messageText = 8;
-        string purchaseAmountText = 9;
-        string videoOffsetTimeMsec = 10;
+        string messageText = 7;
+        string purchaseAmountText = 8;
+        string videoOffsetTimeMsec = 9;
 }
 
 
