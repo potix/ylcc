@@ -8,9 +8,9 @@ import (
 
 
 type collector struct {
-	verbose bool
-	apiKey  string
-
+	verbose    bool
+	apiKey     string
+	dbOperator *DatabaseOperator
 }
 
 
@@ -86,22 +86,30 @@ LAST:
 	}
 }
 
-func (c *collector) Start() {
+func (c *collector) Start() (error) {
+	err := c.dbOperator.Start()
+	if err != nil {
+		return fmt.Errorf("can not start collector: %w", err)
+	}
 	go loopMain
 }
 
 func (c *collector) Stop() {
 	close(c.loopFinishResquestChan)
-        <-c.;oopFinishResponseChan
+        <-c.loopFinishResponseChan
 }
 
-func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Searcher, error) {
+func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collector, error) {
 	if len(apiKeys) != 1 {
-		return fmt.Errorf("no api key")
+		return nil, fmt.Errorf("no api key")
 	}
-	databaseOperator := NewDatabaseOperator(verbose, databasePath)
+	databaseOperator, err := NewDatabaseOperator(verbose, databasePath)
+	if err != nil {
+		return nil, fmt.Errorf("can not create database operator: %w", err)
+	}
 	return &collector {
-		 apiKey: apiKeys[0],
-		 verbose bool,
+		verbose: verbose,
+		apiKey: apiKeys[0],
+		dbOperator: databaseOperator,
 	}
 }

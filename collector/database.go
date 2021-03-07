@@ -117,11 +117,12 @@ func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
         return nil
 }
 
-func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoId(videoId string) ([]*pb.ActiveLiveChatMessage, error) {
+func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId string) (string, []*pb.ActiveLiveChatMessage, error) {
+	var nextToken string
 	activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0)
-        activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage Where videoId = ?`, videoId)
+        activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? AND token = ?`, videoId, token)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get activeLiveChatMessage by videoId")
+                return "", nil, errors.Wrap(err, "can not get activeLiveChatMessage by videoId")
         }
         defer activeLiveChatMessageRows.Close()
         for activeLiveChatMessageRows.Next() {
@@ -145,16 +146,18 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoId(videoId string) ([
 		    &activeLiveChatMessage.AmountDisplayString,
 		    &activeLiveChatMessage.Currency,
 		    _,
+		    &nextToken,
+		    _,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan activeLiveChatMessage by videoId")
+                        return "", nil, errors.Wrap(err, "can not scan activeLiveChatMessage by videoId")
                 }
 		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
         }
-        return activeLiveChatMessages, nil
+        return nextToken, activeLiveChatMessages, nil
 }
 
-func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages []*pb.ActiveLiveChatMessage) (error) {
+func (d *DatabaseOperator) UpdateActiveLiveChatMessages(token string, nextToken string, activeLiveChatMessages []*pb.ActiveLiveChatMessage) (error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "can not start transaction in UpdateActiveLiveChatMessages")
@@ -186,10 +189,12 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages [
 			isSuperChat,
 			amountDisplayString,
 			currency,
+			token,
+			nextToken,
 			lastUpdate
 		    ) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 		    )`,
 		    activeLiveChatMessage.messageId,
 		    activeLiveChatMessage.ChannelId,
@@ -208,6 +213,8 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages [
 		    activeLiveChatMessage.isSuperChat,
 		    activeLiveChatMessage.amountDisplayString,
 		    activeLiveChatMessage.currency,
+		    token,
+		    nextToken,
 		    nowUnix,
 		)
 		if err != nil {
@@ -243,11 +250,12 @@ func (d *DatabaseOperator) DeleteActiveLiveChatMessagesByLastUpdate(lastUpdate i
         return nil
 }
 
-func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoId(videoId string) ([]*pb.ArchiveLiveChatMessage, error) {
+func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId string, token string) (string, []*pb.ArchiveLiveChatMessage, error) {
+	var nextToken string
 	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
-        archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage Where videoId = ?`, videoId)
+        archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? AND token = ?`, videoId, token)
         if err != nil {
-                return nil, errors.Wrap(err, "can not get archiveLiveChatMessage by videoId")
+                return "", nil, errors.Wrap(err, "can not get archiveLiveChatMessage by videoId")
         }
         defer archiveLiveChatMessageRows.Close()
         for archiveLiveChatMessageRows.Next() {
@@ -264,16 +272,19 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoId(videoId string) (
 		    &archiveLiveChatMessage.MessageText,
 		    &archiveLiveChatMessage.PurchaseAmountText,
 		    &archiveLiveChatMessage.VideoOffsetTimeMsec,
+		    _,
+		    &nextToken,
+		    _,
                 )
                 if err != nil {
-                        return nil, errors.Wrap(err, "can not scan archiveLiveChatMessage by videoId")
+                        return "", nil, errors.Wrap(err, "can not scan archiveLiveChatMessage by videoId")
                 }
 		archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
         }
-        return archiveLiveChatMessages, nil
+        return nextToken, archiveLiveChatMessages, nil
 }
 
-func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages []*pb.ArchiveLiveChatMessage) (error) {
+func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken string, archiveLiveChatMessages []*pb.ArchiveLiveChatMessage) (error) {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "can not start transaction in UpdateArchiveLiveChatMessages")
@@ -297,9 +308,12 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 			messageText,
 			purchaseAmountText,
 			videoOffsetTimeMsec,
+			token,
+			nextToken,
 			lastUpdate
 		    ) VALUES (
-			?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+			?, ?
 		    )`,
 		    archiveLiveChatMessage.MessageId,
 		    archiveLiveChatMessage.ChannelId,
@@ -310,7 +324,9 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 		    archiveLiveChatMessage.MessageText,
 		    archiveLiveChatMessage.PurchaseAmountText,
 		    archiveLiveChatMessage.VideoOffsetTimeMsec,
-		    _,
+		    token,
+		    nextToken,
+		    nowUnix,
 		)
 		if err != nil {
 		        tx.Rollback()
@@ -395,6 +411,8 @@ func (d *DatabaseOperator) createTables() (error) {
 		isSuperChat           TEXT NOT NULL,
 		amountDisplayString   TEXT NOT NULL,
 		currency              TEXT NOT NULL,
+		Token                 TEXT NOT NULL,
+		nextToken             TEXT NOT NULL,
 		lastUpdate            INTEGER NOT NULL
 	)`
 	_, err = d.db.Exec(avtiveLiveChatMessageTableCreateQuery);
@@ -429,6 +447,8 @@ func (d *DatabaseOperator) createTables() (error) {
 		messageText         TEXT NOT NULL,
 		purchaseAmountText  TEXT NOT NULL,
 		videoOffsetTimeMsec TEXT NOT NULL,
+		Token               TEXT NOT NULL,
+		nextToken           TEXT NOT NULL,
 		lastUpdate          INTEGER NOT NULL
 	)`
 	_, err = d.db.Exec(archiveLiveChatMessageTableCreateQuery);

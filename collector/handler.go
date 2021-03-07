@@ -10,8 +10,12 @@ type handler struct {
 	collector *collector
 }
 
-func (h *handler) Start() {
-	h.collector.Start()
+func (h *handler) Start() (error) {
+	err := h.collector.Start()
+	if err != nil {
+		return fmt.Errorf("can not start collector %w", err)
+	}
+	return nil
 }
 
 func (h *handler) Stop() {
@@ -30,8 +34,7 @@ func (h *handler) StartCollectionActiveLiveChat(ctx context.Context, request *St
 	return h.collector.StartCollectionActiveLiveChat(request)
 }
 
-func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server Ylcc_PollActiveLiveChatServer) (error)
-{
+func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server Ylcc_PollActiveLiveChatServer) (error) {
 	myCh := make(chan *PollActiveLiveChatResponse)
 	h.collector.PollActiveLiveChatSubscribe(myCh, request)
 	defer h.collector.PollActiveLiveChatUnsubscribe(myCh)

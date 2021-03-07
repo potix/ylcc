@@ -18,18 +18,22 @@ type Server struct {
 
 // Handler is handler interface
 type Handler insterface {
-	Start()
+	Start() (error)
 	Stop()
 	Register()
 }
 
-func (s *server) Start() {
-	s.handler.Start()
+func (s *server) Start() (error) {
+	err := s.handler.Start()
+	if err != nil {
+		return fmt.Errorf("can not start handler: %w", err)
+	}
         go func() {
 		if err := s.grpcServer.Serve(lis); err != nil {
 			log.Fatalf("can not create server credential: %w", err)
 		}
 	}
+	return nil
 }
 
 func (s *server) Stop() {

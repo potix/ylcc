@@ -109,7 +109,10 @@ func main() {
 		conf.Server.TlsKeyPath,
 		newHandler,
 	)
-	newServer.Start()
+	err = newServer.Start()
+	if err != nil {
+                log.Fatalf("can not start server: %v", err)
+	}
         signalWait()
         newServer.Stop()
 }
