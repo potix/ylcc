@@ -1,6 +1,5 @@
 package collector
 
-
 import (
 	"time"
 	"strconv"
@@ -11,9 +10,7 @@ import (
 	"bytes"
 	"net/http"
 	"io/ioutil"
-	"github.com/pkg/errors"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/munoudesu/clipper/database"
 )
 
 const(

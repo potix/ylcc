@@ -11,7 +11,6 @@ import (
         "encoding/json"
         "github.com/potix/ylcc/configurator"
         "github.com/potix/ylcc/collector"
-        "github.com/potix/ylcc/handler"
         "github.com/potix/ylcc/server"
 )
 
