@@ -21,12 +21,12 @@ const(
 
 type archiveLiveChatMessagesParams struct {
 	last    bool
+	prevUrl string
 	url     string
-	nextUrl string
 }
 
 func newArchiveLiveChatMessagesParams(url string) (*archiveLiveChatMessagesParams) {
-	return &liveChatMessagesParams {
+	return &archiveLiveChatMessagesParams {
 		last: false,
 		prevUrl: "",
 		url: url,
@@ -78,8 +78,8 @@ func (c *Collector) getPage(url string, useUserAgent bool) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Collector) getArchiveLiveChatFirstLiveChatReplayUrl() (string, error) {
-	url := youtubeBaseUrl + l.videoId
+func (c *Collector) getArchiveLiveChatFirstLiveChatReplayUrl(videoId string) (string, error) {
+	url := youtubeBaseUrl + videoId
         body, err := c.getPage(url, false)
         if err != nil {
                 return "", errors.Wrapf(err, "can not get video page (url = %v)", url)
@@ -214,8 +214,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 		append(archiveLiveChatMessages, c.getLiveChatMessage(channelId, videoId, liveChatContinuationAction))
 	}
 	if err := c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevId(), params.getId(), archiveLiveChatMessages); err != nil {
-                log.Printf("can not update live chat (videoId = %v): %v", videoId, err)
-                return
+                return fmt.Errorf("can not update archhive live chat in database (videoId = %v): %w", videoId, err)
         }
 	params.updateId(nextId)
 	return nil
@@ -237,7 +236,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
                         return
                 }
         }
-        firstLiveChatReplayUrl, err := c.getArchiveLiveChatFirstLiveChatReplayUrl()
+        firstLiveChatReplayUrl, err := c.getArchiveLiveChatFirstLiveChatReplayUrl(videoId)
         if err != nil {
                 c.unregisterRequestedVideoForArchiveLiveChat(videoId)
                 log.Printf ("can not get first live chat replay url (videoId = %v): %w", videoId, err)
