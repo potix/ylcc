@@ -4,7 +4,6 @@ import (
         "os"
         "log"
         "path/filepath"
-        "github.com/pkg/errors"
         "database/sql"
         _ "github.com/mattn/go-sqlite3"
 )
@@ -18,7 +17,7 @@ type DatabaseOperator struct {
 func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, error) {
         rows, err := d.db.Query(`SELECT * FROM video WHERE videoId = ?`, videoId)
         if err != nil {
-                return nil, false, errors.Wrap(err, "can not get video by videoId")
+		return nil, false, fmt.Errorf("can not get video by videoId: %w", err)
         }
         defer rows.Close()
         for rows.Next() {
@@ -42,7 +41,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, e
 		    _,
                 )
                 if err != nil {
-                        return nil, false, errors.Wrap(err, "can not scan video by videoId")
+			return nil, false, fmt.Errorf("can not scan video by videoId: %w", err)
                 }
 		return video, true, nil
         }
@@ -90,11 +89,11 @@ func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
 	    time.Now().Unix(),
         )
         if err != nil {
-                return errors.Wrap(err, "can not insert video")
+		return fmt.Errorf("can not insert video: %w", err)
         }
         id, err := res.LastInsertId()
         if err != nil {
-                return errors.Wrap(err, "can not get insert id of video")
+		return fmt.Errorf("can not get insert id of video: %w", err)
         }
 	if d.verbose {
 		log.Printf("update video (videoId = %v, insert id = %v)", video.VideoId, id)
@@ -105,11 +104,11 @@ func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
 func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
 	res, err := d.db.Exec(`DELETE FROM video WHERE lastUpdate < ?`, lastUpdate)
         if err != nil {
-                return errors.Wrap(err, "can not delete video")
+		return fmt.Errorf("can not delete video: %w", err)
         }
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-                return errors.Wrap(err, "can not get rowsAffected of video")
+		return fmt.Errorf("can not get rowsAffected of video: %w", err)
         }
 	if d.verbose {
 		log.Printf("delete video (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
@@ -117,12 +116,12 @@ func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
         return nil
 }
 
-func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId string) (string, []*pb.ActiveLiveChatMessage, error) {
+func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId string, token string) (string, []*pb.ActiveLiveChatMessage, error) {
 	var nextToken string
 	activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0)
         activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? AND token = ?`, videoId, token)
         if err != nil {
-                return "", nil, errors.Wrap(err, "can not get activeLiveChatMessage by videoId")
+		return "", nil, fmt.Errorf("can not get activeLiveChatMessage by videoId and token: %w", err)
         }
         defer activeLiveChatMessageRows.Close()
         for activeLiveChatMessageRows.Next() {
@@ -150,7 +149,7 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
 		    _,
                 )
                 if err != nil {
-                        return "", nil, errors.Wrap(err, "can not scan activeLiveChatMessage by videoId")
+			return "", nil, fmt.Errorf("can not scan activeLiveChatMessage by videoId and token: %w", err)
                 }
 		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
         }
@@ -160,7 +159,7 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
 func (d *DatabaseOperator) UpdateActiveLiveChatMessages(token string, nextToken string, activeLiveChatMessages []*pb.ActiveLiveChatMessage) (error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "can not start transaction in UpdateActiveLiveChatMessages")
+		return fmt.Errorf("can not start transaction in UpdateActiveLiveChatMessages: %w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -219,12 +218,12 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(token string, nextToken 
 		)
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not insert activeLiveChatMessage")
+			return fmt.Errorf("can not insert activeLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not get insert id of activeLiveChatMessage")
+			return fmt.Errorf("can not get insert id of activeLiveChatMessage: %w", err)
 		}
 		if d.verbose {
 			log.Printf("update activeLiveChatMessage (messageId = %v, insert id = %v)", activeLiveChatMessage.messageId, id)
@@ -237,11 +236,11 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(token string, nextToken 
 func (d *DatabaseOperator) DeleteActiveLiveChatMessagesByLastUpdate(lastUpdate int) (error) {
 	res, err := d.db.Exec(`DELETE FROM activeLiveChatMessage WHERE lastUpdate < ?`, lastUpdate)
         if err != nil {
-                return errors.Wrap(err, "can not delete activeLiveChatMessages")
+		return fmt.Errorf("can not delete activeLiveChatMessages: %w", err)
         }
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-		return errors.Wrap(err, "can not get rowsAffected of activeLiveChatMessage")
+		return fmt.Errorf("can not get rowsAffected of activeLiveChatMessage: %w", err)
         }
 	if d.verbose {
 		log.Printf("delete activeLiveChatMessages (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
@@ -255,7 +254,7 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
         archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? AND token = ?`, videoId, token)
         if err != nil {
-                return "", nil, errors.Wrap(err, "can not get archiveLiveChatMessage by videoId")
+		return "", nil, fmt.Errorf("can not get archiveLiveChatMessage by videoId and token: %w", err)
         }
         defer archiveLiveChatMessageRows.Close()
         for archiveLiveChatMessageRows.Next() {
@@ -277,17 +276,38 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 		    _,
                 )
                 if err != nil {
-                        return "", nil, errors.Wrap(err, "can not scan archiveLiveChatMessage by videoId")
+			return "", nil, fmt.Errorf("can not scan archiveLiveChatMessage by videoId and token: %w", err)
                 }
 		archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
         }
         return nextToken, archiveLiveChatMessages, nil
 }
 
+func (d *DatabaseOperator) CountArchiveLiveChatMessagesByVideoId(videoId string) (int, error) {
+	var nextToken string
+	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
+        archiveLiveChatMessageRows, err := d.db.Query(`SELECT count(*) FROM archiveLiveChatMessage WHERE videoId = ?`, videoId)
+        if err != nil {
+		return "", nil, fmt.Errorf("can not get archiveLiveChatMessage by videoId: %w", err)
+        }
+        defer archiveLiveChatMessageRows.Close()
+        for archiveLiveChatMessageRows.Next() {
+		var count int
+                err := archiveLiveChatMessageRows.Scan(
+		    &count,
+                )
+                if err != nil {
+			return 0, fmt.Errorf("can not scan archiveLiveChatMessage by videoId: %w", err)
+                }
+		return count, nil
+        }
+        return 0, nil
+}
+
 func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken string, archiveLiveChatMessages []*pb.ArchiveLiveChatMessage) (error) {
 	tx, err := d.db.Begin()
 	if err != nil {
-		return errors.Wrap(err, "can not start transaction in UpdateArchiveLiveChatMessages")
+		return fmt.Errorf("can not start transaction in UpdateArchiveLiveChatMessages: %w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
@@ -330,12 +350,12 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken
 		)
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not insert archiveLiveChatMessage")
+			return fmt.Errorf("can not insert archiveLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
 		        tx.Rollback()
-			return errors.Wrap(err, "can not get insert id of archiveLiveChatMessage")
+			return fmt.Errorf("can not get insert id of archiveLiveChatMessage: %w", err)
 		}
 		if d.verbose {
 			log.Printf("update archiveLiveChatMessage (messageId = %v, insert id = %v)", archiveLiveChatMessage.messageId, id)
@@ -348,11 +368,11 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken
 func (d *DatabaseOperator) DeleteArchiveLiveChatMessagesByLastUpdate(videoId string) (error) {
 	res, err := d.db.Exec(`DELETE FROM archiveLiveChatMessage WHERE lastUpdate = ?`, lastUpdate)
         if err != nil {
-                return errors.Wrap(err, "can not delete archiveLiveChatMessages")
+		return fmt.Errorf("can not delete archiveLiveChatMessages: %w", err)
         }
         rowsAffected, err := res.RowsAffected()
         if err != nil {
-                return errors.Wrap(err, "can not get rowsAffected of archiveLiveChatMessage")
+		return fmt.Errorf("can not get rowsAffected of archiveLiveChatMessage: %w", err)
         }
 	if d.verbose {
 		log.Printf("delete archiveLiveChatMessages (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
@@ -382,12 +402,12 @@ func (d *DatabaseOperator) createTables() (error) {
 	)`
 	_, err = d.db.Exec(videoTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create video table")
+		return fmt.Errorf("can not create video table: %w", err)
 	}
         videoLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS videoLastUpdateIndex ON video(lastUpdate)`
 	_, err = d.db.Exec(videoLastUpdateIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create lastUpdate index of video")
+		return fmt.Errorf("can not create lastUpdate index of video: %w", err)
 	}
 
         activeLiveChatMessageTableCreateQuery := `
@@ -417,22 +437,22 @@ func (d *DatabaseOperator) createTables() (error) {
 	)`
 	_, err = d.db.Exec(avtiveLiveChatMessageTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create activeLiveChatMessage table")
+		return fmt.Errorf("can not create activeLiveChatMessage table: %w", err)
 	}
         activeLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageVideoIdIndex ON activeLiveChatMessage(videoId)`
 	_, err = d.db.Exec(activeLiveChatMessageVideoIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create videoId index of avtiveLiveChatMessage")
+		return fmt.Errorf("can not create videoId index of avtiveLiveChatMessage: %w", err)
 	}
         activeLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageChannelIdIndex ON activeLiveChatMessage(channelId)`
 	_, err = d.db.Exec(activeLiveChatMessageChannelIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create channelId index of activeLiveChatMessage")
+		return fmt.Errorf("can not create channelId index of activeLiveChatMessage: %w", err)
 	}
         activeLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageLastUPdateIndex ON activeLiveChatMessage(lastUpdate)`
 	_, err = d.db.Exec(activeLiveChatMessageLastUPdateIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create lastUpdate index of activeLiveChatMessage")
+		return fmt.Errorf("can not create lastUpdate index of activeLiveChatMessage: %w", err)
 	}
 
         archiveLiveChatMessageTableCreateQuery := `
@@ -453,22 +473,22 @@ func (d *DatabaseOperator) createTables() (error) {
 	)`
 	_, err = d.db.Exec(archiveLiveChatMessageTableCreateQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create archiveLiveChatMessage table")
+		return fmt.Errorf("can not create archiveLiveChatMessage table: %w", err)
 	}
         archiveLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageVideoIdIndex ON liveChatMessage(videoId)`
 	_, err = d.db.Exec(archiveLiveChatMessageVideoIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create vodeoId index of archiveLiveChatMessage")
+		return fmt.Errorf("can not create vodeoId index of archiveLiveChatMessage: %w", err)
 	}
         archiveLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageChannelIdIndex ON liveChatMessage(channelId)`
 	_, err = d.db.Exec(archiveLiveChatMessageChannelIdIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create channelId index archiveLiveChatMessage")
+		return fmt.Errorf("can not create channelId index archiveLiveChatMessage: %w", err)
 	}
         archiveLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageLastUPdateIndex ON liveChatMessage(lastUpdate)`
 	_, err = d.db.Exec(archiveLiveChatMessageLastUPdateIndexQuery);
 	if  err != nil {
-		return errors.Wrap(err, "can not create lastUPdate of archiveLiveChatMessage")
+		return fmt.Errorf("can not create lastUPdate of archiveLiveChatMessage: %w", err)
 	}
 
 	return nil
@@ -477,12 +497,12 @@ func (d *DatabaseOperator) createTables() (error) {
 func (d *DatabaseOperator) Open() (error) {
         db, err := sql.Open("sqlite3", d.databasePath)
         if err != nil {
-                return errors.Wrapf(err, "can not open database")
+		return fmt.Errorf("can not open database: %w", err)
         }
         d.db = db
         err = d.createTables()
         if err != nil {
-                return errors.Wrapf(err, "can not create table of database")
+		return fmt.Errorf("can not create table of database: %w", err)
         }
         return nil
 }
@@ -493,14 +513,14 @@ func (d *DatabaseOperator) Close()  {
 
 func NewDatabaseOperator(verbose bool, databasePath string) (*DatabaseOperator, error) {
         if databasePath == "" {
-                return nil, errors.New("no database path")
+                return nil, fmt.Errorf("no database path")
         }
         dirname := filepath.Dir(databasePath)
         _, err := os.Stat(dirname)
         if err != nil {
                 err := os.MkdirAll(dirname, 0755)
                 if err != nil {
-                        return nil, errors.Errorf("can not create directory (%v)", dirname)
+                        return nil, fmt.Errorf("can not create directory (%v)", dirname)
                 }
         }
         return &DatabaseOperator{

@@ -21,43 +21,51 @@ const(
 	maxRetry = 10
 )
 
-type liveChatMessagesContext {
-	last bool
-	url string
-	liveChatMessages []*database.LiveChatMessage
+type archiveLiveChatMessagesContext {
+	first            bool
+	firstUrl         string
+	url              string
+	nextUrl          string
+	archiveLiveChatMessages []*pb.ArchiveLiveChatMessage
 }
 
-func newLiveChatMessagesContext(nextUrl string) (*liveChatMessagesContext) {
+func newArchiveLiveChatMessagesContext(url string) (*archiveLiveChatMessagesContext) {
 	return &liveChatMessagesContext {
-		last: false,
-		url: url,
-		liveChatMessages: make([]*database.LiveChatMessage, 0, 2000)
+		first: true,
+		firstUrl: url,
+		url: "",
+		nextUrl: "",
+		archiveLiveChatMessages: make([]*pb.ArchiveLiveChatMessage, 0, 2000)
 	}
 }
 
-func (l *liveChatMessagesContext) updateUrl(url string) {
-	l.url = url
+func (l *archiveLiveChatMessagesContext) updateNextUrl(url string) {
+	l.fitst = false
+	l.url = l.nextUrl
+	l.nextUrl = url
+
 }
 
-func (l *liveChatMessagesContext) getUrl() string) {
+func (l *archiveLiveChatMessagesContext) gettUrl() (string) {
 	return l.url
 }
 
-func (l *liveChatMessagesContext) appendLiveChatMessage(liveChatMessages *database.LiveChatMessage) () {
-	l.liveChatMessages =  append(l.liveChatMessages, liveChatMessage)
+func (l *archiveLiveChatMessagesContext) getNextUrl() (string) {
+	if first {
+		return l.firstUrl
+	} else {
+		return l.nextUrl
+	}
 }
 
-func (l *liveChatMessagesContext) getLiveChatMessages() ([]*database.LiveChatMessage) {
+func (l *archiveLiveChatMessagesContext) appendLiveChatMessage(archiveLiveChatMessage *pb.ArchiveLiveChatMessage) () {
+	l.archiveLiveChatMessages =  append(l.archiveLiveChatMessages, archiveLiveChatMessage)
+}
+
+func (l *archiveLiveChatMessagesContext) getArchiveLiveChatMessages() ([]*pb.archiveLiveChatMessage) {
 	return l.liveChatMessages
 }
 
-func (l *liveChatMessagesContext) setLast() {
-	l.last = true
-}
-
-func (l *liveChatMessagesContext) isLast() {
-	return l.last == true
-}
 
 func (c *Collector) getPage(url string, useUserAgent bool) ([]byte, error) {
 	if c.verbose {
@@ -136,7 +144,7 @@ func (c *Collector) getYtInitialData(url string)(string, error) {
 	return yuInitialDataStr, nil
 }
 
-func (l *LiveCharCollector)updateLiveChatMessage(liveChatContinuationAction string) (*datanase.LiveChatMessage) {
+func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction string) (*pb.ArchiveLiveChatMessage) {
 	videoOffsetTimeMsec := liveChatContinuationAction.ReplayChatItemAction.VideoOffsetTimeMsec
 	for _, replayChatItemAction := range liveChatContinuationAction.ReplayChatItemAction.Actions {
 		clientId := replayChatItemAction.AddChatItemAction.ClientID
@@ -197,9 +205,9 @@ func (l *LiveCharCollector)updateLiveChatMessage(liveChatContinuationAction stri
 	}
 }
 
-func (c *Collector)getLiveChatMessages(ctx *liveChatMessagesContext)(error) {
+func (c *Collector) getArchiveLiveChatMessages(params *liveChatMessagesParams)(error) {
 	var yuInitialDataStr string
-	yuInitialDataStr, err := c.getYtInitialData(ctx.getUrl())
+	yuInitialDataStr, err := c.getYtInitialData(params.getNextUrl())
 	if err != nil {
 		return errors.Wrapf(err, "can not get ytInitialData (url = %v)", url)
 	}
@@ -219,64 +227,77 @@ func (c *Collector)getLiveChatMessages(ctx *liveChatMessagesContext)(error) {
 		log.Printf("nextId = %v", nextId)
 	}
 	for _, liveChatContinuationAction := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
-		ctx.appendLiveChatMessage(c.getLiveChatMessage(liveChatContinuationAction))
+		params.appendArchiveLiveChatMessage(c.getLiveChatMessage(liveChatContinuationAction))
 	}
 	if nextId == "" {
 		ctx.setLast()
 		return nil
 	}
-	ctx.updateUrl("https://www.youtube.com/live_chat_replay?continuation=" + nextId)
+	ctx.updateNextUrl("https://www.youtube.com/live_chat_replay?continuation=" + nextId)
 	return nil
 }
 
-func (c *Collector)CollectLiveChat(videoId) (error) {
-	var liveChatMessage make([]*database.LiveChatMessage, 0, 2000),
-	count, err := l.databaseOperator.CountLiveChatMessagesByVideoId(videoId)
-	if err != nil {
-		return errors.Wrapf(err, "can not get live chat from database (videoId = %v)", videoId)
-	}
-	if count> 0 {
-		if l.verbose {
-			log.Printf("already exists live chat in database (videoId = %v)", videoId)
-		}
-		return nil
-	}
-	firstLiveChatReplayUrl, err := l.getFirstLiveChatReplayUrl()
-	if err != nil {
-		return fmt.Errorf("can not get first live chat replay url (videoId = %v): %w", videoId, err)
-	}
-	if l.verbose {
-		log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
-	}
-	if firstLiveChatReplayUrl == "" {
-		if l.verbose {
-			log.Printf("skip collect live chat because can not get first live chat replay url")
-		}
-		return nil
-	}
-	ctx := newLiveChatMessagesContext(firstLiveChatReplayUrl)
-	for {
-		retry := 0
-		for {
-			err := l.getLiveChatMessages(ctx)
-			if err != nil {
-				retry += 1
-				log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", l.videoId, nextUrl, err)
-				time.Sleep(time.Second)
-				if retry > maxRetry {
-					return fmt.Errorf("... giveup, can not get live chat (videoId = %v, nextUrl = %v): %w", l.videoId, nextUrl, err)
-				}
-				continue
-			}
-			break;
-		}
-		if ctx.isLast() {
-			break
-		}
-	}
-	err = l.databaseOperator.UpdateLiveChatMessages(ctx.getLiveChatMessages())
-	if err != nil {
-		return fmt.Errorf("can not update live chat (videoId = %v): %w", l.videoId, err)
-	}
-	return nil
+func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId string, replace bool) {
+        if !replace {
+                count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(videoId)
+                if err != nil {
+                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                        logPrintf("can not get archive live chat from database (videoId = %v): %v", videoId, err)
+                        return
+                }
+                if count > 0 {
+                        if l.verbose {
+                                log.Printf("already exists archive live chat in database (videoId = %v)", videoId)
+                        }
+                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                        return
+                }
+        }
+        var liveChatMessage make([]*database.LiveChatMessage, 0, 2000),
+        firstLiveChatReplayUrl, err := c.getFirstLiveChatReplayUrl()
+        if err != nil {
+                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                log.Printf ("can not get first live chat replay url (videoId = %v): %w", videoId, err)
+                return
+        }
+        if c.verbose {
+                log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
+        }
+        if firstLiveChatReplayUrl == "" {
+                if l.verbose {
+                        log.Printf("skip collect archive live chat because can not get first live chat replay url")
+                }
+                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                return
+        }
+        params := newArchiveLiveChatMessagesParams(firstLiveChatReplayUrl)
+        for {
+                retry := 0
+                for {
+                        err := c.getArchiveLiveChatMessages(params)
+                        if err != nil {
+                                retry += 1
+                                log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", l.videoId, nextUrl, err)
+                                time.Sleep(time.Second)
+                                if retry > retryMax {
+                                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                                        log.Printf("... giveup, can not get live chat (videoId = %v, nextUrl = %v): %v", l.videoId, nextUrl, err)
+                                        return
+                                }
+                                continue
+                        }
+                        break;
+                }
+                if params.getNextUrl() == "" {
+                        break
+                }
+        }
+        err = c.dbOperator.UpdateArchiveLiveChatMessages(ctx.getToken, ctx.getNextToken, ctx.getLiveChatMessages())
+        if err != nil {
+                log.Printf("can not update live chat (videoId = %v): %v", l.videoId, err)
+                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+                return
+        }
+        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+        return
 }

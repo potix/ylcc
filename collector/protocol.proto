@@ -73,6 +73,7 @@ message GetCachedActiveLiveChatResponse {
 
 message StartCollectionArchiveLiveChatRequest {
 	string videoId = 1;
+	bool replace = 2;
 }
 
 message StartCollectionArchiveLiveChatResponse {
