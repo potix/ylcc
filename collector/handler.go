@@ -1,39 +1,40 @@
 package collector
 
 import (
+	"context"
 	"google.golang.org/grpc"
 	pb "github.com/potix/ylcc/protocol"
 )
 
-type handler struct {
+type Handler struct {
 	verbose   bool
-	collector *collector
+	collector *Collector
 }
 
-func (h *handler) Start() (error) {
+func (h *Handler) Start() (error) {
 	if err := h.collector.Start(); err != nil {
 		return fmt.Errorf("can not start collector %w", err)
 	}
 	return nil
 }
 
-func (h *handler) Stop() {
+func (h *Handler) Stop() {
 	h.collector.Stop()
 }
 
-func (h *handler) Register(grpcServer *grpc.Server) {
-	pb.RegisterYlccServer(grpcServer, handler)
+func (h *Handler) Register(grpcServer *grpc.Server) {
+	pb.RegisterYlccServer(grpcServer, Handler)
 }
 
-func (h *handler) GetVideo(ctx context.Context, request *GetVideoRequest) (*GetVideoResponse, error) {
+func (h *Handler) GetVideo(ctx context.Context, request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
 	return h.collector.getVideo(request)
 }
 
-func (h *handler) StartCollectionActiveLiveChat(ctx context.Context, request *StartCollectionActiveLiveChatRequest) (*StartCollectionActiveLiveChatResponse, error) {
+func (h *Handler) StartCollectionActiveLiveChat(ctx context.Context, request *pb.StartCollectionActiveLiveChatRequest) (*pb.StartCollectionActiveLiveChatResponse, error) {
 	return h.collector.startCollectionActiveLiveChat(request)
 }
 
-func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server Ylcc_PollActiveLiveChatServer) (error) {
+func (h *Handler) PollActiveLiveChat(request *pb.PollActiveLiveChatRequest, server pb.Ylcc_PollActiveLiveChatServer) (error) {
 	subscribeActiveLiveChatParams := h.collector.subscribeActiveLiveChat(request)
 	defer h.collector.unsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
 	for {
@@ -47,20 +48,20 @@ func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server 
 	}
 }
 
-func (h *handler) GetCachedActiveLiveChat(ctx context.Context, request *GetCachedActiveLiveChatRequest) (*GetCachedActiveLiveChatResponse, error) {
+func (h *Handler) GetCachedActiveLiveChat(ctx context.Context, request *pb.GetCachedActiveLiveChatRequest) (*pb.GetCachedActiveLiveChatResponse, error) {
 	return h.collector.getCachedActiveLiveChat(request)
 }
 
-func (h *handler) StartCollectionArchiveLiveChat(ctx context.Context, request *StartCollectionArchiveLiveChatRequest) (*StartCollectionArchiveLiveChatResponse, error) {
+func (h *Handler) StartCollectionArchiveLiveChat(ctx context.Context, request *pb.StartCollectionArchiveLiveChatRequest) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 	return h.collector.startCollectionArchiveLiveChat(request)
 }
 
-func (h *handler) GetArchiveLiveChat(ctx context.Context, request *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error) {
+func (h *Handler) GetArchiveLiveChat(ctx context.Context, request *pb.GetArchiveLiveChatRequest) (*pb.GetArchiveLiveChatResponse, error) {
 	return h.collector.getArchiveLiveChat(request)
 }
 
-func NewHandler(verbose bool, collecot *collector) (Handler) {
-	return &handler {
+func NewHandler(verbose bool, collecot *Collector) (Handler) {
+	return &Handler {
 		verbose: verbose,
 		collector: collector,
 	}
