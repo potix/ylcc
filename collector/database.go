@@ -6,6 +6,7 @@ import (
         "path/filepath"
         "database/sql"
         _ "github.com/mattn/go-sqlite3"
+	pb "github.com/potix/ylcc/protocol"
 )
 
 type DatabaseOperator struct {

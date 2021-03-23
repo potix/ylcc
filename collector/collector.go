@@ -4,6 +4,7 @@ import (
         "sync"
         "google.golang.org/api/option"
         "google.golang.org/api/youtube/v3"
+	 pb "github.com/potix/ylcc/protocol"
 )
 
 const (

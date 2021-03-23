@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"github.com/PuerkitoBio/goquery"
+	 pb "github.com/potix/ylcc/protocol"
 )
 
 const(
@@ -127,7 +128,7 @@ func (c *Collector) getArchiveLiveChatYtInitialData(url string)(string, error) {
 	return yuInitialDataStr, nil
 }
 
-func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction string) (*pb.ArchiveLiveChatMessage) {
+func (c *Collector)getArchiveLiveChatMessage(channelId string, videoId string, liveChatContinuationAction string) (*pb.ArchiveLiveChatMessage) {
 	videoOffsetTimeMsec := liveChatContinuationAction.ReplayChatItemAction.VideoOffsetTimeMsec
 	for _, replayChatItemAction := range liveChatContinuationAction.ReplayChatItemAction.Actions {
 		clientId := replayChatItemAction.AddChatItemAction.ClientID
@@ -146,9 +147,9 @@ func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction 
 			purchaseAmountText := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText
 			timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec
 			return &database.LiveChatMessage{
-				UniqueId: l.videoId + ".paid." + id + "." + timestampUsec + "." + clientId,
-				ChannelId: l.channelId,
-				VideoId: l.videoId,
+				UniqueId: videoId + ".paid." + id + "." + timestampUsec + "." + clientId,
+				ChannelId: channelId,
+				VideoId: videoId,
 				ClientId: clientId,
 				MessageId: id,
 				TimestampUsec: timestampUsec,
@@ -172,9 +173,9 @@ func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction 
 			}
 			timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
 			return &database.LiveChatMessage{
-				UniqueId: l.videoId + ".text." + id + "." + timestampUsec + "." + clientId,
-				ChannelId: l.channelId,
-				VideoId: l.videoId,
+				UniqueId: videoId + ".text." + id + "." + timestampUsec + "." + clientId,
+				ChannelId: channelId,
+				VideoId: videoId,
 				ClientId: clientId,
 				MessageId: id,
 				TimestampUsec: timestampUsec,
@@ -188,7 +189,7 @@ func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction 
 	}
 }
 
-func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string, params *liveChatMessagesParams)(error) {
+func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string, params *archiveLiveChatMessagesParams)(error) {
 	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, 2000)
 	var yuInitialDataStr string
 	yuInitialDataStr, err := c.getArchiveLiveChatYtInitialData(youtubeLiveChatBaseUrl + params.getId())
@@ -210,7 +211,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 		log.Printf("nextId = %v, videoId = %v", nextId, videoId)
 	}
 	for _, liveChatContinuationAction := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
-		append(archiveLiveChatMessages, c.getLiveChatMessage(liveChatContinuationAction))
+		append(archiveLiveChatMessages, c.getLiveChatMessage(channelId, videoId, liveChatContinuationAction))
 	}
 	if err := c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevId(), params.getId(), archiveLiveChatMessages); err != nil {
                 log.Printf("can not update live chat (videoId = %v): %v", videoId, err)
