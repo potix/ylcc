@@ -1,8 +1,11 @@
 package collector
 
 import (
+        "fmt"
         "sync"
+        "context"
         "google.golang.org/api/option"
+	"google.golang.org/api/transport/http"
         "google.golang.org/api/youtube/v3"
 	 pb "github.com/potix/ylcc/protocol"
 )
@@ -13,14 +16,16 @@ const (
 )
 
 type Collector struct {
-	verbose                     bool
-	apiKey                      string
-	dbOperator                  *DatabaseOperator
-	requestedVideoForActiveLiveChatMutex         *sync.Mutex
-	requestedVideoForActiveLiveChat	            map[string]bool
-	publishActiveLiveChatCh     *publishActiveLiveChatMessagesParams
-	subscribeActiveLiveChatCh   *subscribeActiveLiveChatParams
-	unsubscribeActiveLiveChatCh *subscribeActiveLiveChatParams
+	verbose                               bool
+	apiKey                                string
+	dbOperator                            *DatabaseOperator
+	requestedVideoForActiveLiveChatMutex  *sync.Mutex
+	requestedVideoForActiveLiveChat	      map[string]bool
+	requestedVideoForArchiveLiveChatMutex *sync.Mutex
+	requestedVideoForArchiveLiveChat      map[string]bool
+	publishActiveLiveChatCh               *publishActiveLiveChatMessagesParams
+	subscribeActiveLiveChatCh             *subscribeActiveLiveChatParams
+	unsubscribeActiveLiveChatCh           *subscribeActiveLiveChatParams
 }
 
 type publishActiveLiveChatMessagesParams struct {
@@ -36,8 +41,8 @@ type subscribeActiveLiveChatParams struct {
 
 func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
-	defer requestedVideoForActiveLiveChatMutex.Unlock()
-	_, ok := c.requestedForActiveLiveChatVideo[videoId]
+	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
+	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if ok {
 		return false
 	}
@@ -47,8 +52,8 @@ func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) (boo
 
 func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
-	defer requestedVideoForActiveLiveChatMutex.Unlock()
-	_, ok := c.requestedForActiveLiveChatVideo[videoId]
+	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
+	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if ok {
 		return true
 	}
@@ -57,7 +62,7 @@ func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) (bool) 
 
 func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
-	defer requestedVideoForActiveLiveChatMutex.Unlock()
+	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if !ok {
 		return false
@@ -69,8 +74,8 @@ func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) (b
 
 func (c *Collector) registerRequestedVideoForArchiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
-	defer requestedVideoForArchiveLiveChatMutex.Unlock()
-	_, ok := c.requestedForArchiveLiveChatVideo[videoId]
+	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
+	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
 	if ok {
 		return false
 	}
@@ -80,8 +85,8 @@ func (c *Collector) registerRequestedVideoForArchiveLiveChat(videoId string) (bo
 
 func (c *Collector) checkRequestedVideoForArchiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
-	defer requestedVideoForArchiveLiveChatMutex.Unlock()
-	_, ok := c.requestedForArchiveLiveChatVideo[videoId]
+	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
+	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
 	if ok {
 		return true
 	}
@@ -90,7 +95,7 @@ func (c *Collector) checkRequestedVideoForArchiveLiveChat(videoId string) (bool)
 
 func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) (bool) {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
-	defer requestedVideoForArchiveLiveChatMutex.Unlock()
+	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
 	if !ok {
 		return false
@@ -103,11 +108,11 @@ func (c *Collector) createYoutubeService() (*youtube.Service, error) {
         ctx := context.Background()
         newClient, _, err := http.NewClient(ctx, option.WithAPIKey(c.apiKey))
         if err != nil {
-		return nil, nil, fmt.Errorf("can not create http clinet: %w", err)
+		return nil, fmt.Errorf("can not create http clinet: %w", err)
         }
         youtubeService, err := youtube.New(newClient)
         if err != nil {
-		return nil, nil, fmt.Errorf("can not create youtube service: %w", err)
+		return nil, fmt.Errorf("can not create youtube service: %w", err)
         }
 	return youtubeService, nil
 }
@@ -122,10 +127,11 @@ func (c *Collector) getVideoFromYoutube(videoId string, youtubeService *youtube.
         if len(videoListResponse.Items) < 1 {
                 return nil, true, nil
         }
+	item := videoListResponse.Items[0]
         video := &pb.Video {
                 VideoId: item.Id,
                 ChannelId: item.Snippet.ChannelId,
-                CategoryId: item.SnippetCategoryId,
+                CategoryId: item.Snippet.CategoryId,
                 Title: item.Snippet.Title,
                 Description: item.Snippet.Description,
                 PublishdAt: item.Snippet.PublishedAt,
@@ -553,8 +559,10 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		verbose: verbose,
 		apiKey: apiKeys[0],
 		dbOperator: databaseOperator,
-		requestedVideoMutex: new(sync.Mutex),
-		requestedVideo: make(map[string]string),
+		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
+		requestedVideoForActiveLiveChat: make(map[string]string),
+		requestedVideoForArchiveLiveChatMutex: new(sync.Mutex),
+		requestedVideoForArchiveLiveChat: make(map[string]string),
 		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessages),
 	}
 }
