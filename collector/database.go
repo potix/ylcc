@@ -25,7 +25,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, e
         defer rows.Close()
         for rows.Next() {
                 video := &pb.Video{}
-                err := rows.Scan(
+		if err := rows.Scan(
                     &video.VideoId,
                     &video.ChannelId,
                     &video.CategoryId,
@@ -42,8 +42,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, e
                     &video.StatusUploadStatus,
                     &video.StatusEmbeddable,
 		    _,
-                )
-                if err != nil {
+                ); err != nil {
 			return nil, false, fmt.Errorf("can not scan video by videoId: %w", err)
                 }
 		return video, true, nil
@@ -129,7 +128,7 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
         defer activeLiveChatMessageRows.Close()
         for activeLiveChatMessageRows.Next() {
                 activeLiveChatMessage := &pb.ActiveLiveChatMessage{}
-                err := activeLiveChatMessageRows.Scan(
+                if err := activeLiveChatMessageRows.Scan(
 		    &activeLiveChatMessage.MessageId,
 		    &activeLiveChatMessage.ChannelId,
 		    &activeLiveChatMessage.VideoId,
@@ -150,8 +149,7 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
 		    _,
 		    &nextToken,
 		    _,
-                )
-                if err != nil {
+                ); err != nil {
 			return "", nil, fmt.Errorf("can not scan activeLiveChatMessage by videoId and token: %w", err)
                 }
 		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
@@ -262,7 +260,7 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
         defer archiveLiveChatMessageRows.Close()
         for archiveLiveChatMessageRows.Next() {
                 archiveLiveChatMessage := &ArchiveLiveChatMessage{}
-                err := archiveLiveChatMessageRows.Scan(
+                if err := archiveLiveChatMessageRows.Scan(
 		    &archiveLiveChatMessage.UniqueId,
 		    &archiveLiveChatMessage.ChannelId,
 		    &archiveLiveChatMessage.VideoId,
@@ -277,8 +275,7 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 		    _,
 		    &nextToken,
 		    _,
-                )
-                if err != nil {
+                ); err != nil {
 			return "", nil, fmt.Errorf("can not scan archiveLiveChatMessage by videoId and token: %w", err)
                 }
 		archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
@@ -296,10 +293,7 @@ func (d *DatabaseOperator) CountArchiveLiveChatMessagesByVideoId(videoId string)
         defer archiveLiveChatMessageRows.Close()
         for archiveLiveChatMessageRows.Next() {
 		var count int
-                err := archiveLiveChatMessageRows.Scan(
-		    &count,
-                )
-                if err != nil {
+                if err := archiveLiveChatMessageRows.Scan(&count); err != nil {
 			return 0, fmt.Errorf("can not scan archiveLiveChatMessage by videoId: %w", err)
                 }
 		return count, nil
