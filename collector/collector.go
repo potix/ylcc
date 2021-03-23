@@ -28,6 +28,8 @@ type Collector struct {
 	publishActiveLiveChatCh               chan *publishActiveLiveChatMessagesParams
 	subscribeActiveLiveChatCh             chan *subscribeActiveLiveChatParams
 	unsubscribeActiveLiveChatCh           chan *subscribeActiveLiveChatParams
+	publisherFinishRequestCh              chan int
+	publisherFinishResponseCh             chan int
 }
 
 type publishActiveLiveChatMessagesParams struct {
@@ -568,5 +570,7 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessages),
 		subscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
 		unsubscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
+		publisherFinishRequestCh: make(chan int),
+		publisherFinishResponseCh: make(chan int),
 	}
 }

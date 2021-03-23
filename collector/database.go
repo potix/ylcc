@@ -1,6 +1,7 @@
 package collector
 
 import (
+        "fmt"
         "os"
         "log"
         "path/filepath"
