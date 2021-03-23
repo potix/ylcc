@@ -17,55 +17,43 @@ import (
 )
 
 const(
+	youtubeBaseUrl string = "https://www.youtube.com/watch?v="
+	youtubeLiveChatBaseUrl string = "https://www.youtube.com/live_chat_replay?continuation="
 	userAgent string = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36 Gecko/20100101 Firefox/70.0"
-	maxRetry = 10
+	maxRetry int    = 10
 )
 
-type archiveLiveChatMessagesContext {
-	first            bool
-	firstUrl         string
-	url              string
-	nextUrl          string
-	archiveLiveChatMessages []*pb.ArchiveLiveChatMessage
+type archiveLiveChatMessagesParams {
+	last    bool
+	url     string
+	nextUrl string
 }
 
-func newArchiveLiveChatMessagesContext(url string) (*archiveLiveChatMessagesContext) {
-	return &liveChatMessagesContext {
-		first: true,
-		firstUrl: url,
-		url: "",
-		nextUrl: "",
-		archiveLiveChatMessages: make([]*pb.ArchiveLiveChatMessage, 0, 2000)
+func newArchiveLiveChatMessagesParams(url string) (*archiveLiveChatMessagesContext) {
+	return &liveChatMessagesParams {
+		last: false,
+		prevUrl: "",
+		url: url,
 	}
 }
 
-func (l *archiveLiveChatMessagesContext) updateNextUrl(url string) {
-	l.fitst = false
-	l.url = l.nextUrl
-	l.nextUrl = url
-
+func (l *archiveLiveChatMessagesParams) updateUrl(id string) {
+	l.prevUrl = l.url
+	if id == "" {
+		l.url = ""
+		return
+	} else {
+		l.url = youtubeLiveChatBaseUrl + id
+	}
 }
 
-func (l *archiveLiveChatMessagesContext) gettUrl() (string) {
+func (l *archiveLiveChatMessagesParams) getPrevUrl() (string) {
+	return l.prevUrl
+}
+
+func (l *archiveLiveChatMessagesParams) getUrl() (string) {
 	return l.url
 }
-
-func (l *archiveLiveChatMessagesContext) getNextUrl() (string) {
-	if first {
-		return l.firstUrl
-	} else {
-		return l.nextUrl
-	}
-}
-
-func (l *archiveLiveChatMessagesContext) appendLiveChatMessage(archiveLiveChatMessage *pb.ArchiveLiveChatMessage) () {
-	l.archiveLiveChatMessages =  append(l.archiveLiveChatMessages, archiveLiveChatMessage)
-}
-
-func (l *archiveLiveChatMessagesContext) getArchiveLiveChatMessages() ([]*pb.archiveLiveChatMessage) {
-	return l.liveChatMessages
-}
-
 
 func (c *Collector) getPage(url string, useUserAgent bool) ([]byte, error) {
 	if c.verbose {
@@ -94,8 +82,8 @@ func (c *Collector) getPage(url string, useUserAgent bool) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Collector) getFirstLiveChatReplayUrl() (string, error) {
-	url := "https://www.youtube.com/watch?v=" + l.videoId
+func (c *Collector) getArchiveLiveChatFirstLiveChatReplayUrl() (string, error) {
+	url := youtubeBaseUrl + l.videoId
         body, err := c.getPage(url, false)
         if err != nil {
                 return "", errors.Wrapf(err, "can not get video page (url = %v)", url)
@@ -115,7 +103,7 @@ func (c *Collector) getFirstLiveChatReplayUrl() (string, error) {
 	return firstLiveChatReplayUrl, nil
 }
 
-func (c *Collector) getYtInitialData(url string)(string, error) {
+func (c *Collector) getArchiveLiveChatYtInitialData(url string)(string, error) {
         body, err := c.getPage(url, true)
         if err != nil {
                 return "", errors.Wrapf(err, "can not get video page (url = %v)", url)
@@ -205,35 +193,37 @@ func (l *LiveCharCollector)getArchiveLiveChatMessage(liveChatContinuationAction 
 	}
 }
 
-func (c *Collector) getArchiveLiveChatMessages(params *liveChatMessagesParams)(error) {
+func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string, params *liveChatMessagesParams)(error) {
+	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, 2000)
 	var yuInitialDataStr string
-	yuInitialDataStr, err := c.getYtInitialData(params.getNextUrl())
+	yuInitialDataStr, err := c.getArchiveLiveChatYtInitialData(youtubeLiveChatBaseUrl + params.getId())
 	if err != nil {
-		return errors.Wrapf(err, "can not get ytInitialData (url = %v)", url)
+		return errors.Wrapf(err, "can not get ytInitialData (url = %v, videoId = %v)", url, videoId)
 	}
 	if yuInitialDataStr == "" {
-		return errors.Errorf("not found ytInitialData (url = %v)", url)
+		return errors.Errorf("not found ytInitialData (url = %v, videoId = %v)", url, videoId)
 	}
 	var ytInitialData YtInitialData
 	err := json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData)
 	if err != nil {
-		return errors.Wrapf(err, "can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v)", url, yuInitialDataStr)
+		return errors.Wrapf(err, "can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v, videoId = %v)", url, yuInitialDataStr, videoId)
 	}
 	var nextId string
 	if len(ytInitialData.ContinuationContents.LiveChatContinuation.Continuations) >= 2 {
 		nextId = ytInitialData.ContinuationContents.LiveChatContinuation.Continuations[0].LiveChatReplayContinuationData.Continuation
 	}
-	if l.verbose {
-		log.Printf("nextId = %v", nextId)
+	if c.verbose {
+		log.Printf("nextId = %v, videoId = %v", nextId, videoId)
 	}
 	for _, liveChatContinuationAction := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
-		params.appendArchiveLiveChatMessage(c.getLiveChatMessage(liveChatContinuationAction))
+		append(archiveLiveChatMessages, c.getLiveChatMessage(liveChatContinuationAction))
 	}
-	if nextId == "" {
-		ctx.setLast()
-		return nil
-	}
-	ctx.updateNextUrl("https://www.youtube.com/live_chat_replay?continuation=" + nextId)
+        err = c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevId(), params.getId(), archiveLiveChatMessages)
+        if err != nil {
+                log.Printf("can not update live chat (videoId = %v): %v", videoId, err)
+                return
+        }
+	params.updateId(nextId)
 	return nil
 }
 
@@ -253,8 +243,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
                         return
                 }
         }
-        var liveChatMessage make([]*database.LiveChatMessage, 0, 2000),
-        firstLiveChatReplayUrl, err := c.getFirstLiveChatReplayUrl()
+        firstLiveChatReplayUrl, err := c.getArchiveLiveChatFirstLiveChatReplayUrl()
         if err != nil {
                 c.unregisterRequestedVideoForArchiveLiveChat(videoId)
                 log.Printf ("can not get first live chat replay url (videoId = %v): %w", videoId, err)
@@ -274,7 +263,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
         for {
                 retry := 0
                 for {
-                        err := c.getArchiveLiveChatMessages(params)
+                        err := c.getArchiveLiveChatMessages(params, channelId, videoId)
                         if err != nil {
                                 retry += 1
                                 log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", l.videoId, nextUrl, err)
@@ -288,15 +277,9 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
                         }
                         break;
                 }
-                if params.getNextUrl() == "" {
+                if params.getUrl() == "" {
                         break
                 }
-        }
-        err = c.dbOperator.UpdateArchiveLiveChatMessages(ctx.getToken, ctx.getNextToken, ctx.getLiveChatMessages())
-        if err != nil {
-                log.Printf("can not update live chat (videoId = %v): %v", l.videoId, err)
-                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                return
         }
         c.unregisterRequestedVideoForArchiveLiveChat(videoId)
         return

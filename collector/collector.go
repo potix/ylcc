@@ -11,7 +11,6 @@ const (
 	retryMax int = 10
 )
 
-
 type Collector struct {
 	verbose                     bool
 	apiKey                      string
@@ -415,21 +414,37 @@ func  (c *Controller) StartCollectionArchiveLiveChat(request *StartCollectionArc
 	}
 }
 
-
-
-
-
 func (c *Collector) GetArchiveLiveChat(request *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error) {
-        return h.collector.GetArchiveLiveChat(request)
+	status := new(*pb.Status)
+	progress := c.checkRequestedVideoForArchiveLiveChat(request.VideoId)
+	if progress {
+		status.Code = Code_IN_PROGRESS
+		status.Message = fmt.Sprintf("be in progress (videoId = %v, pageToken = %v)", request.VideoId, request.pageToken)
+		return &pb.StartCollectionArchiveLiveChatResponse {
+			Status: status,
+			NextPageToken: "",
+			ArchiveLiveChatMessage: nil,
+		}
+	}
+	nextPageToken, archiveLiveChatMessage, err :=  c.dbOperator.GetArchiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.pageToken)
+	if err != nil {
+		status.Code = Code_INTERNAL_ERROR
+		status.Message = fmt.Sprintf("%v (videoId = %v, pageToken = %v)", err, request.VideoId, request.pageToken)
+		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
+		return &pb.StartCollectionArchiveLiveChatResponse {
+			Status: status,
+			NextPageToken: "",
+			ArchiveLiveChatMessage: nil,
+		}
+	}
+	status.Code = Code_SUCCESS
+	status.Message = fmt.Sprintf("success (videoId = %v, pageToken = %v)", request.VideoId, request.pageToken)
+	return &pb.GetCachedArchiveLiveChatResponse {
+		Status: status,
+		NextPageToken: nextPageToken,
+		archiveLiveChatMessage: archiveLiveChatMessage,
+	}
 }
-
-
-
-
-
-
-
-
 
 func (c *Collector) SubscribeActiveLiveChat(request *pb.PollActiveLiveChatRequest) {
         subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams {
