@@ -159,10 +159,6 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 			if replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText != "" {
 				timestampText := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText
 				authorName := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorName.SimpleText
-				var authorPhotoUrl string
-				if len(replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
-					authorPhotoUrl = replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorPhoto.Thumbnails[0].URL
-				}
 				id := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID
 				var messageText string
 				for _, run := range replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.Message.Runs {
@@ -171,14 +167,12 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 				purchaseAmountText := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText
 				timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec
 				archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-					UniqueId: videoId + ".paid." + id + "." + timestampUsec + "." + clientId,
+					MessageId: id,
 					ChannelId: channelId,
 					VideoId: videoId,
-					ClientId: clientId,
-					MessageId: id,
 					TimestampUsec: timestampUsec,
+					ClientId: clientId,
 					AuthorName: authorName,
-					AuthorPhotoUrl: authorPhotoUrl,
 					MessageText: messageText,
 					PurchaseAmountText: purchaseAmountText,
 					VideoOffsetTimeMsec: videoOffsetTimeMsec,
@@ -187,10 +181,6 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 			} else if replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText != "" {
 				timestampText := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
 				authorName := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
-				var authorPhotoUrl string
-				if len(replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails) > 0 {
-					authorPhotoUrl = replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorPhoto.Thumbnails[0].URL
-				}
 				id := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID
 				var messageText string
 				for _, run := range replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
@@ -198,14 +188,12 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 				}
 				timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
 				archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-					UniqueId: videoId + ".text." + id + "." + timestampUsec + "." + clientId,
+					MessageId: id,
 					ChannelId: channelId,
 					VideoId: videoId,
-					ClientId: clientId,
-					MessageId: id,
 					TimestampUsec: timestampUsec,
+					ClientId: clientId,
 					AuthorName: authorName,
-					AuthorPhotoUrl: authorPhotoUrl,
 					MessageText: messageText,
 					PurchaseAmountText: "",
 					VideoOffsetTimeMsec: videoOffsetTimeMsec,
@@ -217,7 +205,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 	if err := c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevUrl(), params.getUrl(), archiveLiveChatMessages); err != nil {
                 return fmt.Errorf("can not update archhive live chat in database (videoId = %v): %w", videoId, err)
         }
-	params.updateId(nextId)
+	params.updateUrl(nextId)
 	return nil
 }
 
@@ -257,7 +245,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
         for {
                 retry := 0
                 for {
-                        if err := c.getArchiveLiveChatMessages(params, channelId, videoId); err != nil {
+                        if err := c.getArchiveLiveChatMessages(channelId, videoId, params); err != nil {
                                 retry += 1
                                 log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", videoId, params.getUrl(), err)
                                 time.Sleep(time.Second)
