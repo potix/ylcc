@@ -118,10 +118,10 @@ message ActiveLiveChatMessage {
 	string authorChannelId = 5;
 	string authorChannelUrl = 6;
 	string authorDisplayName = 7;
-	string authorIsChatModerator = 8;
-	string authorIsChatOwner = 9;
-	string authorIsChatSponsor = 10;
-	string authorIsVerified = 11;
+	bool authorIsChatModerator = 8;
+	bool authorIsChatOwner = 9;
+	bool authorIsChatSponsor = 10;
+	bool authorIsVerified = 11;
 	string liveChatId = 12;
 	string displayMessage = 13;
 	string publishedAt = 14;
