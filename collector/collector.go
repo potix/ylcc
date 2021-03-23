@@ -467,7 +467,7 @@ func (c *Collector) UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams *sub
 	c.unsubscribeActiveLiveChatCh <-subscribeActiveLiveChatParams;
 }
 
-func (c *Collector) Publisher() {
+func (c *Collector) publisher() {
 	activeLiveChatSubscribers := make(map[string]map[chan *pb.PollActiveLiveChatResponse]bool)
 	for {
                 select {
@@ -539,16 +539,16 @@ LAST:
 }
 
 func (c *Collector) Start() (error) {
-	err := c.dbOperator.Start()
-	if err != nil {
+	if err := c.dbOperator.Open(); err != nil {
 		return fmt.Errorf("can not start Collector: %w", err)
 	}
 	go c.publisher()
+	return nil
 }
 
 func (c *Collector) Stop() {
-	close(c.publisherFinishResquestChan)
-        <-c.publisherFinishResponseChan
+	close(c.publisherFinishRequestCh)
+        <-c.publisherFinishResponseCh
 }
 
 func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collector, error) {
@@ -564,13 +564,13 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		apiKey: apiKeys[0],
 		dbOperator: databaseOperator,
 		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
-		requestedVideoForActiveLiveChat: make(map[string]string),
+		requestedVideoForActiveLiveChat: make(map[string]bool),
 		requestedVideoForArchiveLiveChatMutex: new(sync.Mutex),
-		requestedVideoForArchiveLiveChat: make(map[string]string),
-		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessages),
+		requestedVideoForArchiveLiveChat: make(map[string]bool),
+		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessagesParams),
 		subscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
 		unsubscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
 		publisherFinishRequestCh: make(chan int),
 		publisherFinishResponseCh: make(chan int),
-	}
+	}, nil
 }
