@@ -134,17 +134,16 @@ func (c *Collector) getVideoFromYoutube(videoId string, youtubeService *youtube.
                 CategoryId: item.Snippet.CategoryId,
                 Title: item.Snippet.Title,
                 Description: item.Snippet.Description,
-                PublishdAt: item.Snippet.PublishedAt,
+                PublishedAt: item.Snippet.PublishedAt,
                 Duration: item.ContentDetails.Duration,
                 ActiveLiveChatId: item.LiveStreamingDetails.ActiveLiveChatId,
                 ActualStartTime: item.LiveStreamingDetails.ActualStartTime,
                 ActualEndTime: item.LiveStreamingDetails.ActualEndTime,
                 ScheduledStartTime: item.LiveStreamingDetails.ScheduledStartTime,
                 ScheduledEndTime: item.LiveStreamingDetails.ScheduledEndTime,
-                StatusPrivacyStatus: item.Status.PrivacyStatus,
-                StatusUploadStatus: item.Status.UploadStatus,
-                StatusEmbeddable : item.Status.Embeddable,
-                ResponseEtag: videoListResponse.Etag,
+                PrivacyStatus: item.Status.PrivacyStatus,
+                UploadStatus: item.Status.UploadStatus,
+                Embeddable : item.Status.Embeddable,
         }
         return video, true, nil
 }

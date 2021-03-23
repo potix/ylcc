@@ -107,7 +107,7 @@ message Video {
         string scheduledEndTime = 12; 
         string privacyStatus = 13;
 	string uploadStatus = 14;
-	string embeddable = 15;
+	bool embeddable = 15;
 }
 
 message ActiveLiveChatMessage {
