@@ -1,9 +1,9 @@
 package collector
 
 import (
-        "os"
-        "strings"
-        "io/ioutil"
+        "sync"
+        "google.golang.org/api/option"
+        "google.golang.org/api/youtube/v3"
 )
 
 const (
@@ -98,7 +98,7 @@ func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) (
 	return true
 }
 
-func (c *Collector) createYoutubeService() (youtubeService *youtube.Service, error) {
+func (c *Collector) createYoutubeService() (*youtube.Service, error) {
         ctx := context.Background()
         newClient, _, err := http.NewClient(ctx, option.WithAPIKey(c.apiKey))
         if err != nil {
@@ -156,7 +156,7 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
 				activeLiveChatMessages: nil,
 			}
 			c.unregisterRequestedVideoForActiveLiveChat(videoId)
-			c.verbose {
+			if c.verbose {
 				log.Printf("can not get live chat messages: %v\n", err)
 			}
                         return
@@ -170,12 +170,12 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
 			currency := ""
 			isSuperChat = false
                         if item.Snippet.SuperChatDetails != nil {
-				message = item.Snippet.SuperChatDetails.UserComment
+				displayMessage = item.Snippet.SuperChatDetails.UserComment
                                 amountDisplayString = item.Snippet.SuperChatDetails.AmountDisplayString
                                 currency = item.Snippet.SuperChatDetails.AmountDisplayString
 				isSuperChat = true
                         } else if item.Snippet.TextMessageDetails != nil {
-                                messages = tem.Snippet.TextMessageDetails.MessageText)
+                                displayMessage = tem.Snippet.TextMessageDetails.MessageText
                         }
 			activeLiveChatMessage := &pb.ActiveLiveChatMessage{
 				MessageId: item.Id,
@@ -507,7 +507,7 @@ func (c *Collector) Publisher() {
 				}
 				break
 			}
-			_, ok activeLiveChatSubscribers[videoId][subscriberCh]
+			_, ok = activeLiveChatSubscribers[videoId][subscriberCh]
 			if !ok {
 				if c.verbose {
 					log.Printf("no subscriber for active live chat. no subscriber channel. (videoId = %v, subscriberCh = %v)", videoId, subscriberCh)
@@ -554,6 +554,6 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		dbOperator: databaseOperator,
 		requestedVideoMutex: new(sync.Mutex),
 		requestedVideo: make(map[string]string),
-		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessages)
+		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessages),
 	}
 }

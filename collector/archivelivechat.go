@@ -2,11 +2,9 @@ package collector
 
 import (
 	"time"
-	"strconv"
 	"encoding/json"
 	"strings"
 	"log"
-	"context"
 	"bytes"
 	"net/http"
 	"io/ioutil"
@@ -20,13 +18,13 @@ const(
 	maxRetry int    = 10
 )
 
-type archiveLiveChatMessagesParams {
+type archiveLiveChatMessagesParams struct {
 	last    bool
 	url     string
 	nextUrl string
 }
 
-func newArchiveLiveChatMessagesParams(url string) (*archiveLiveChatMessagesContext) {
+func newArchiveLiveChatMessagesParams(url string) (*archiveLiveChatMessagesParams) {
 	return &liveChatMessagesParams {
 		last: false,
 		prevUrl: "",
@@ -201,8 +199,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 		return errors.Errorf("not found ytInitialData (url = %v, videoId = %v)", url, videoId)
 	}
 	var ytInitialData YtInitialData
-	err := json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData)
-	if err != nil {
+	if err := json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData); err != nil {
 		return errors.Wrapf(err, "can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v, videoId = %v)", url, yuInitialDataStr, videoId)
 	}
 	var nextId string
@@ -215,8 +212,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 	for _, liveChatContinuationAction := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
 		append(archiveLiveChatMessages, c.getLiveChatMessage(liveChatContinuationAction))
 	}
-        err = c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevId(), params.getId(), archiveLiveChatMessages)
-        if err != nil {
+	if err := c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevId(), params.getId(), archiveLiveChatMessages); err != nil {
                 log.Printf("can not update live chat (videoId = %v): %v", videoId, err)
                 return
         }
@@ -260,8 +256,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
         for {
                 retry := 0
                 for {
-                        err := c.getArchiveLiveChatMessages(params, channelId, videoId)
-                        if err != nil {
+                        if err := c.getArchiveLiveChatMessages(params, channelId, videoId); err != nil {
                                 retry += 1
                                 log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", l.videoId, nextUrl, err)
                                 time.Sleep(time.Second)

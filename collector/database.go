@@ -133,11 +133,11 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
 		    &activeLiveChatMessage.ApiEtag,
 		    &activeLiveChatMessage.AuthorChannelId,
 		    &activeLiveChatMessage.AuthorChannelUrl,
-		    &activeLiveChatMessage.AuthorDisplayName
-		    &activeLiveChatMessage.AuthorIsChatModerator
-		    &activeLiveChatMessage.AuthorIsChatOwner
-		    &activeLiveChatMessage.AuthorIsChatSponsor
-		    &activeLiveChatMessage.AuthorIsVerified
+		    &activeLiveChatMessage.AuthorDisplayName,
+		    &activeLiveChatMessage.AuthorIsChatModerator,
+		    &activeLiveChatMessage.AuthorIsChatOwner,
+		    &activeLiveChatMessage.AuthorIsChatSponsor,
+		    &activeLiveChatMessage.AuthorIsVerified,
 		    &activeLiveChatMessage.LiveChatId,
 		    &activeLiveChatMessage.DisplayMessage,
 		    &activeLiveChatMessage.PublishedAt,

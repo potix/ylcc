@@ -11,8 +11,7 @@ type handler struct {
 }
 
 func (h *handler) Start() (error) {
-	err := h.collector.Start()
-	if err != nil {
+	if err := h.collector.Start(); err != nil {
 		return fmt.Errorf("can not start collector %w", err)
 	}
 	return nil
@@ -42,8 +41,7 @@ func (h *handler) PollActiveLiveChat(request *PollActiveLiveChatRequest, server 
 		if !ok {
 			return nil
 		}
-		err := server.Send(response)
-		if err != nil {
+		if err := server.Send(response); err != nil {
 			return fmt.Errorf("can not send response: %w", err)
 		}
 	}

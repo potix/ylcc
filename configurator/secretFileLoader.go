@@ -1,6 +1,7 @@
 package configurator
 
 import (
+        "fmt"
         "os"
         "strings"
         "io/ioutil"
@@ -19,7 +20,7 @@ func LoadSecretFile(secretFile string) ([]string, error) {
 		return nil, fmt.Errorf("can not read youtube data api key file (%v): %w", err)
         }
         loadedStrings := strings.Split(string(loadedBytes), "\n")
-        strings := make([]string, 0, len(loadedStrings))
+        parsedStrings := make([]string, 0, len(loadedStrings))
         for _, s := range loadedStrings {
                 ts := strings.TrimSpace(s)
                 if strings.HasPrefix(ts, "#") {
@@ -28,7 +29,7 @@ func LoadSecretFile(secretFile string) ([]string, error) {
                 if ts == "" {
                         continue
                 }
-                strings = append(strings, ts)
+                parsedStrings = append(parsedStrings, ts)
         }
-        return strings, nil
+        return parsedStrings, nil
 }
