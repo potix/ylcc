@@ -24,6 +24,7 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, e
         }
         defer rows.Close()
         for rows.Next() {
+		var lastUpdate int
                 video := &pb.Video{}
 		if err := rows.Scan(
                     &video.VideoId,
@@ -31,17 +32,17 @@ func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, e
                     &video.CategoryId,
                     &video.Title,
                     &video.Description,
-                    &video.PublishdAt,
+                    &video.PublishedAt,
                     &video.Duration,
                     &video.ActiveLiveChatId,
                     &video.ActualStartTime,
                     &video.ActualEndTime,
                     &video.ScheduledStartTime,
                     &video.ScheduledEndTime,
-                    &video.StatusPrivacyStatus,
-                    &video.StatusUploadStatus,
-                    &video.StatusEmbeddable,
-		    _,
+                    &video.PrivacyStatus,
+                    &video.UploadStatus,
+                    &video.Embeddable,
+		    &lastUpdate,
                 ); err != nil {
 			return nil, false, fmt.Errorf("can not scan video by videoId: %w", err)
                 }
@@ -78,16 +79,16 @@ func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
 	    video.CategoryId,
 	    video.Title,
 	    video.Description,
-	    video.PublishdAt,
+	    video.PublishedAt,
 	    video.Duration,
             video.ActiveLiveChatId,
             video.ActualStartTime,
             video.ActualEndTime,
             video.ScheduledStartTime,
             video.ScheduledEndTime,
-	    video.StatusPrivacyStatus,
-	    video.StatusUploadStatus,
-            video.StatusEmbeddable,
+	    video.PrivacyStatus,
+	    video.UploadStatus,
+            video.Embeddable,
 	    time.Now().Unix(),
         )
         if err != nil {
@@ -113,7 +114,7 @@ func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
 		return fmt.Errorf("can not get rowsAffected of video: %w", err)
         }
 	if d.verbose {
-		log.Printf("delete video (videoId = %v, rowsAffected = %v)", videoId, rowsAffected)
+		log.Printf("delete video (rowsAffected = %v)", rowsAffected)
 	}
         return nil
 }
@@ -127,6 +128,8 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
         }
         defer activeLiveChatMessageRows.Close()
         for activeLiveChatMessageRows.Next() {
+		var token string
+		var lastUpdate int
                 activeLiveChatMessage := &pb.ActiveLiveChatMessage{}
                 if err := activeLiveChatMessageRows.Scan(
 		    &activeLiveChatMessage.MessageId,
@@ -146,9 +149,9 @@ func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId st
 		    &activeLiveChatMessage.IsSuperChat,
 		    &activeLiveChatMessage.AmountDisplayString,
 		    &activeLiveChatMessage.Currency,
-		    _,
+		    &token,
 		    &nextToken,
-		    _,
+		    &lastUpdate,
                 ); err != nil {
 			return "", nil, fmt.Errorf("can not scan activeLiveChatMessage by videoId and token: %w", err)
                 }
@@ -259,6 +262,8 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
         }
         defer archiveLiveChatMessageRows.Close()
         for archiveLiveChatMessageRows.Next() {
+		var token string
+		var lastUpdate int
                 archiveLiveChatMessage := &ArchiveLiveChatMessage{}
                 if err := archiveLiveChatMessageRows.Scan(
 		    &archiveLiveChatMessage.UniqueId,
@@ -272,9 +277,9 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 		    &archiveLiveChatMessage.MessageText,
 		    &archiveLiveChatMessage.PurchaseAmountText,
 		    &archiveLiveChatMessage.VideoOffsetTimeMsec,
-		    _,
+		    &token,
 		    &nextToken,
-		    _,
+		    &lastUpdate,
                 ); err != nil {
 			return "", nil, fmt.Errorf("can not scan archiveLiveChatMessage by videoId and token: %w", err)
                 }
