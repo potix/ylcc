@@ -96,7 +96,7 @@ func main() {
         verboseLoadedConfig(&conf)
 	apiKeys, err := configurator.LoadSecretFile(conf.Collector.ApiKeyFile)
 	if err != nil {
-                log.Fatalf("can not load secret file: %v", conf.Collector.ApiKeyFile)
+		log.Fatalf("can not load secret file %v: %v", conf.Collector.ApiKeyFile, err)
 	}
 	if len(apiKeys) != 1 {
                 log.Fatalf("no api key")

@@ -59,6 +59,7 @@ func NewServer(verbose bool, addrPort string, tlsCertPath string, tlsKeyPath str
 		verbose: verbose,
 		listen: listen,
 		grpcServer: grpcServer,
+		handler: handler,
 	}
 	return newServer, nil
 }

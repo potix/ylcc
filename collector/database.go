@@ -56,7 +56,7 @@ func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
             `INSERT OR REPLACE INTO video (
                 videoId,
                 channelId,
-		categoryId
+		categoryId,
                 title,
                 description,
                 publishdAt,
@@ -385,7 +385,7 @@ func (d *DatabaseOperator) createTables() (error) {
             CREATE TABLE IF NOT EXISTS video (
                 videoId            TEXT PRIMARY KEY,
                 channelId          TEXT NOT NULL,
-		categoryId         TEXT NOT NULL
+		categoryId         TEXT NOT NULL,
                 title              TEXT NOT NULL,
                 description        TEXT NOT NULL,
 		publishdAt         TEXT NOT NULL,
@@ -431,7 +431,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		isSuperChat           TEXT NOT NULL,
 		amountDisplayString   TEXT NOT NULL,
 		currency              TEXT NOT NULL,
-		Token                 TEXT NOT NULL,
+		token                 TEXT NOT NULL,
 		nextToken             TEXT NOT NULL,
 		lastUpdate            INTEGER NOT NULL
 	)`
@@ -468,7 +468,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		purchaseAmountText  TEXT NOT NULL,
 		videoOffsetTimeMsec TEXT NOT NULL,
 		timestamp           TEXT NOT NULL,
-		Token               TEXT NOT NULL,
+		token               TEXT NOT NULL,
 		nextToken           TEXT NOT NULL,
 		lastUpdate          INTEGER NOT NULL
 	)`
@@ -476,17 +476,17 @@ func (d *DatabaseOperator) createTables() (error) {
 	if  err != nil {
 		return fmt.Errorf("can not create archiveLiveChatMessage table: %w", err)
 	}
-        archiveLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageVideoIdIndex ON liveChatMessage(videoId)`
+        archiveLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageVideoIdIndex ON archiveLiveChatMessage(videoId)`
 	_, err = d.db.Exec(archiveLiveChatMessageVideoIdIndexQuery);
 	if  err != nil {
 		return fmt.Errorf("can not create vodeoId index of archiveLiveChatMessage: %w", err)
 	}
-        archiveLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageChannelIdIndex ON liveChatMessage(channelId)`
+        archiveLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageChannelIdIndex ON archiveLiveChatMessage(channelId)`
 	_, err = d.db.Exec(archiveLiveChatMessageChannelIdIndexQuery);
 	if  err != nil {
 		return fmt.Errorf("can not create channelId index archiveLiveChatMessage: %w", err)
 	}
-        archiveLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageLastUPdateIndex ON liveChatMessage(lastUpdate)`
+        archiveLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageLastUPdateIndex ON archiveLiveChatMessage(lastUpdate)`
 	_, err = d.db.Exec(archiveLiveChatMessageLastUpdateIndexQuery);
 	if  err != nil {
 		return fmt.Errorf("can not create lastUPdate of archiveLiveChatMessage: %w", err)
