@@ -78,6 +78,9 @@ func main() {
         flag.StringVar(&cmdArgs.configFile, "config", "/usr/local/etc/ylcc.conf", "config file")
         flag.Parse()
         cf, err := configurator.NewConfigurator(cmdArgs.configFile)
+        if err != nil {
+                log.Fatalf("can not create configurator: %v", err)
+        }
         var conf ylccConfig
         err = cf.Load(&conf)
         if err != nil {
