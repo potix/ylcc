@@ -484,14 +484,14 @@ func (c *Collector) publisher() {
 				break
 			}
 			if err != nil {
-				for subscriberCh, _ := range activeLiveChatSubscribers[videoId] {
-					delete(activeLiveChatSubscribers[videoId], subscriberCh)
+				for subscriberCh, _ := range videoSubscribers {
+					delete(videoSubscribers, subscriberCh)
 					close(subscriberCh)
 				}
 				delete(activeLiveChatSubscribers, videoId)
 				break
 			}
-			for subscriberCh, _ := range activeLiveChatSubscribers[videoId] {
+			for subscriberCh, _ := range videoSubscribers {
 				subscriberCh <-&pb.PollActiveLiveChatResponse {
 					Status: &pb.Status{
 						Code: pb.Code_SUCCESS,
@@ -505,10 +505,10 @@ func (c *Collector) publisher() {
 			subscriberCh := subscribeActiveLiveChatParams.subscriberCh
 			videoSubscribers, ok := activeLiveChatSubscribers[videoId]
 			if !ok {
-				newVideoSubscribers := make(map[chan *pb.PollActiveLiveChatResponse]bool)
-				activeLiveChatSubscribers[videoId] = newVideoSubscribers
+				videoSubscribers = make(map[chan *pb.PollActiveLiveChatResponse]bool)
+				activeLiveChatSubscribers[videoId] = videoSubscribers
 			}
-			activeLiveChatSubscribers[videoId][subscriberCh] = true
+			videoSubscribers[subscriberCh] = true
 		case subscribeActiveLiveChatParams := <-c.unsubscribeActiveLiveChatCh:
 			videoId := subscribeActiveLiveChatParams.videoId
 			subscriberCh := subscribeActiveLiveChatParams.subscriberCh
@@ -519,16 +519,16 @@ func (c *Collector) publisher() {
 				}
 				break
 			}
-			_, ok = activeLiveChatSubscribers[videoId][subscriberCh]
+			_, ok = videoSubscribers[subscriberCh]
 			if !ok {
 				if c.verbose {
 					log.Printf("no subscriber for active live chat. no subscriber channel. (videoId = %v, subscriberCh = %v)", videoId, subscriberCh)
 				}
 				break
 			}
-			delete(activeLiveChatSubscribers[videoId], subscriberCh)
+			delete(videoSubscribers, subscriberCh)
 			close(subscriberCh)
-			if len(activeLiveChatSubscribers[videoId]) == 0 {
+			if len(videoSubscribers) == 0 {
 				delete(activeLiveChatSubscribers, videoId)
 			}
                 case <-c.publisherFinishRequestCh:

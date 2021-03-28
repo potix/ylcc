@@ -176,6 +176,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 					MessageText: messageText,
 					PurchaseAmountText: purchaseAmountText,
 					VideoOffsetTimeMsec: videoOffsetTimeMsec,
+					Timestamp: timestampText,
 				}
 				archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
 			} else if replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText != "" {
@@ -197,6 +198,7 @@ func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string,
 					MessageText: messageText,
 					PurchaseAmountText: "",
 					VideoOffsetTimeMsec: videoOffsetTimeMsec,
+					Timestamp: timestampText,
 				}
 				archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
 			}

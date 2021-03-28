@@ -274,6 +274,7 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 		    &archiveLiveChatMessage.MessageText,
 		    &archiveLiveChatMessage.PurchaseAmountText,
 		    &archiveLiveChatMessage.VideoOffsetTimeMsec,
+		    &archiveLiveChatMessage.Timestamp,
 		    &token,
 		    &nextToken,
 		    &lastUpdate,
@@ -286,8 +287,6 @@ func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId s
 }
 
 func (d *DatabaseOperator) CountArchiveLiveChatMessagesByVideoId(videoId string) (int, error) {
-	var nextToken string
-	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
         archiveLiveChatMessageRows, err := d.db.Query(`SELECT count(*) FROM archiveLiveChatMessage WHERE videoId = ?`, videoId)
         if err != nil {
 		return -1, fmt.Errorf("can not get archiveLiveChatMessage by videoId: %w", err)
@@ -327,12 +326,13 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken
 			messageText,
 			purchaseAmountText,
 			videoOffsetTimeMsec,
+			timestamp,
 			token,
 			nextToken,
 			lastUpdate
 		    ) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?
+			?, ?, ?
 		    )`,
 		    archiveLiveChatMessage.MessageId,
 		    archiveLiveChatMessage.ChannelId,
@@ -343,6 +343,7 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(token string, nextToken
 		    archiveLiveChatMessage.MessageText,
 		    archiveLiveChatMessage.PurchaseAmountText,
 		    archiveLiveChatMessage.VideoOffsetTimeMsec,
+		    archiveLiveChatMessage.Timestamp,
 		    token,
 		    nextToken,
 		    nowUnix,
@@ -466,6 +467,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		messageText         TEXT NOT NULL,
 		purchaseAmountText  TEXT NOT NULL,
 		videoOffsetTimeMsec TEXT NOT NULL,
+		timestamp           TEXT NOT NULL,
 		Token               TEXT NOT NULL,
 		nextToken           TEXT NOT NULL,
 		lastUpdate          INTEGER NOT NULL
