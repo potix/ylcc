@@ -228,7 +228,7 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
         }
 }
 
-func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
+func (c *Collector) getVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
 	status := new(pb.Status)
 	video, ok, err := c.dbOperator.GetVideoByVideoId(request.VideoId)
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse,
 	}, nil
 }
 
-func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionActiveLiveChatRequest) (*pb.StartCollectionActiveLiveChatResponse, error) {
+func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionActiveLiveChatRequest) (*pb.StartCollectionActiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	ok := c.registerRequestedVideoForActiveLiveChat(request.VideoId)
 	if !ok {
@@ -323,7 +323,7 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 	}, nil
 }
 
-func (c *Collector) GetCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatRequest) (*pb.GetCachedActiveLiveChatResponse, error) {
+func (c *Collector) getCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatRequest) (*pb.GetCachedActiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	progress := c.checkRequestedVideoForActiveLiveChat(request.VideoId)
 	if progress {
@@ -355,7 +355,7 @@ func (c *Collector) GetCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 	}, nil
 }
 
-func  (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionArchiveLiveChatRequest) (*pb.StartCollectionArchiveLiveChatResponse, error) {
+func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionArchiveLiveChatRequest) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	ok := c.registerRequestedVideoForArchiveLiveChat(request.VideoId)
 	if !ok {
@@ -423,7 +423,7 @@ func  (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionA
 	}, nil
 }
 
-func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*pb.GetArchiveLiveChatResponse, error) {
+func (c *Collector) getArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*pb.GetArchiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	progress := c.checkRequestedVideoForArchiveLiveChat(request.VideoId)
 	if progress {
@@ -455,15 +455,16 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 	}, nil
 }
 
-func (c *Collector) SubscribeActiveLiveChat(request *pb.PollActiveLiveChatRequest) {
+func (c *Collector) subscribeActiveLiveChat(request *pb.PollActiveLiveChatRequest) (*subscribeActiveLiveChatParams) {
         subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams {
                 videoId: request.VideoId,
                 subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
         }
 	c.subscribeActiveLiveChatCh <-subscribeActiveLiveChatParams
+	return subscribeActiveLiveChatParams
 }
 
-func (c *Collector) UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
+func (c *Collector) unsubscribeActiveLiveChat(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
 	c.unsubscribeActiveLiveChatCh <-subscribeActiveLiveChatParams;
 }
 
@@ -538,7 +539,7 @@ LAST:
 	close(c.publisherFinishResponseCh)
 }
 
-func (c *Collector) Start() (error) {
+func (c *Collector) start() (error) {
 	if err := c.dbOperator.Open(); err != nil {
 		return fmt.Errorf("can not start Collector: %w", err)
 	}
@@ -546,7 +547,7 @@ func (c *Collector) Start() (error) {
 	return nil
 }
 
-func (c *Collector) Stop() {
+func (c *Collector) stop() {
 	close(c.publisherFinishRequestCh)
         <-c.publisherFinishResponseCh
 }

@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"fmt"
 	"context"
 	"google.golang.org/grpc"
 	pb "github.com/potix/ylcc/protocol"
@@ -9,21 +10,22 @@ import (
 type Handler struct {
 	verbose   bool
 	collector *Collector
+	pb.UnimplementedYlccServer
 }
 
 func (h *Handler) Start() (error) {
-	if err := h.collector.Start(); err != nil {
+	if err := h.collector.start(); err != nil {
 		return fmt.Errorf("can not start collector %w", err)
 	}
 	return nil
 }
 
 func (h *Handler) Stop() {
-	h.collector.Stop()
+	h.collector.stop()
 }
 
 func (h *Handler) Register(grpcServer *grpc.Server) {
-	pb.RegisterYlccServer(grpcServer, Handler)
+	pb.RegisterYlccServer(grpcServer, h)
 }
 
 func (h *Handler) GetVideo(ctx context.Context, request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
@@ -60,7 +62,7 @@ func (h *Handler) GetArchiveLiveChat(ctx context.Context, request *pb.GetArchive
 	return h.collector.getArchiveLiveChat(request)
 }
 
-func NewHandler(verbose bool, collecot *Collector) (Handler) {
+func NewHandler(verbose bool, collector *Collector) (*Handler) {
 	return &Handler {
 		verbose: verbose,
 		collector: collector,
