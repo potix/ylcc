@@ -15,8 +15,8 @@ import (
 )
 
 type ylccCollectorConfig struct {
-        ApiKeyFile  string `toml:"apiKeyFile"`
-	DatabsePath string `toml:"databasePath"`
+        ApiKeyFile   string `toml:"apiKeyFile"`
+	DatabasePath string `toml:"databasePath"`
 }
 
 type ylccServerConfig struct {
@@ -30,17 +30,21 @@ type ylccLogConfig struct {
 }
 
 type ylccConfig struct {
-	Verbose   bool                    `toml:"verbose"`
-        Collector *clipperCollectorConfig `toml:"collector"`
-        Server    *clipperServerConfig    `toml:"server"`
-        Log       *clipperLogConfig       `toml:"log"`
+	Verbose   bool                 `toml:"verbose"`
+        Collector *ylccCollectorConfig `toml:"collector"`
+        Server    *ylccServerConfig    `toml:"server"`
+        Log       *ylccLogConfig       `toml:"log"`
 }
 
-func verboseLoadedConfig(loadedConfig *ylccConfig) {
-        if !ylccConfig.Verbose {
+type commandArguments struct {
+	configFile string
+}
+
+func verboseLoadedConfig(config *ylccConfig) {
+        if !config.Verbose {
                 return
         }
-        j, err := json.Marshal(loadedConfig)
+        j, err := json.Marshal(config)
         if err != nil {
 		log.Printf("can not dump config: %v", err)
                 return
@@ -72,7 +76,6 @@ func signalWait() {
 func main() {
         cmdArgs := new(commandArguments)
         flag.StringVar(&cmdArgs.configFile, "config", "/usr/local/etc/ylcc.conf", "config file")
-        flag.BoolVar(&cmdArgs.verbose, "verbose", false, "verbose")
         flag.Parse()
         cf, err := configurator.NewConfigurator(cmdArgs.configFile)
         var conf ylccConfig
@@ -87,27 +90,36 @@ func main() {
                 }
                 log.SetOutput(logger)
         }
-        verboseLoadedConfig(conf)
-	apiKeys, err := configurator.LoadSecetFile(conf.collector.ApiKeyFile)
+        verboseLoadedConfig(&conf)
+	apiKeys, err := configurator.LoadSecretFile(conf.Collector.ApiKeyFile)
 	if err != nil {
-                log.Fatalf("can not load secret file: %v", conf.collector.ApiKeyFile)
+                log.Fatalf("can not load secret file: %v", conf.Collector.ApiKeyFile)
 	}
-	newCollector := collector.NewCollector(
+	if len(apiKeys) != 1 {
+                log.Fatalf("no api key")
+        }
+	newCollector, err := collector.NewCollector(
 		conf.Verbose,
 		apiKeys,
 		conf.Collector.DatabasePath,
 	)
-	newHandler := handler.NewHandler(
+	if err != nil {
+		log.Fatalf("can not create controller: %v", err)
+	}
+	newHandler := collector.NewHandler(
 		conf.Verbose,
 		newCollector,
 	)
-        newServer := server.NewServer(
+        newServer, err := server.NewServer(
 		conf.Verbose,
 		conf.Server.AddrPort,
 		conf.Server.TlsCertPath,
 		conf.Server.TlsKeyPath,
 		newHandler,
 	)
+	if err != nil {
+		log.Fatalf("can not create server: %v", err)
+	}
 	err = newServer.Start()
 	if err != nil {
                 log.Fatalf("can not start server: %v", err)
