@@ -122,7 +122,7 @@ func (c *Collector) createYoutubeService() (*youtube.Service, error) {
 }
 
 func (c *Collector) getVideoFromYoutube(videoId string, youtubeService *youtube.Service) (*pb.Video, bool, error) {
-        videosListCall := youtubeService.Videos.List([]string{"snippet", "liveStreamingDetails"})
+        videosListCall := youtubeService.Videos.List([]string{"snippet", "contentDetails", "liveStreamingDetails", "status"})
         videosListCall.Id(videoId)
         videoListResponse, err := videosListCall.Do()
         if err != nil {
