@@ -75,7 +75,7 @@ func signalWait() {
 
 func main() {
         cmdArgs := new(commandArguments)
-        flag.StringVar(&cmdArgs.configFile, "config", "/usr/local/etc/ylcc.conf", "config file")
+        flag.StringVar(&cmdArgs.configFile, "config", "./ylcc.conf", "config file")
         flag.Parse()
         cf, err := configurator.NewConfigurator(cmdArgs.configFile)
         if err != nil {
