@@ -132,6 +132,71 @@ func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
 	}
 }
 
+func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60 * time.Second,
+	)
+	defer cancel()
+	request := &pb.StartCollectionArchiveLiveChatRequest {
+		VideoId: videoId,
+	}
+	response, err := client.StartCollectionArchiveLiveChat(ctx, request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		fmt.Printf("%v", response.Status.Message)
+		return
+	}
+	fmt.Printf("%+v", response.Video)
+	return
+}
+
+func getArchiveLiveChat(client pb.YlccClient, videoId string, pageToken string) (string, error) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60 * time.Second,
+	)
+	defer cancel()
+	request := &pb.GetArchiveLiveChatRequest {
+		VideoId: videoId,
+		PageToken: pageToken,
+	}
+	response, err := client.GetArchiveLiveChat(ctx, request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return "", err
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		fmt.Printf("%v", response.Status.Message)
+		return "", fmt.Errorf("%v", response.Status.Message)
+	}
+	if len(response.ArchiveLiveChatMessages) == 0 {
+		fmt.Printf("no message")
+		return "", fmt.Errorf("no message")
+	}
+	for _, archiveLiveChatMessage := range response.ArchiveLiveChatMessages {
+		fmt.Printf("%+v", archiveLiveChatMessage)
+	}
+	return response.NextPageToken, nil
+}
+
+func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
+	pageToken := ""
+	for {
+		nextPageToken, err := getArchiveLiveChat(client, videoId, pageToken)
+		if  err != nil {
+			fmt.Printf("%v", err)
+		}
+		if nextPageToken == "" {
+			break
+		}
+		pageToken = nextPageToken
+	}
+}
+
 
 func main() {
 	var mode  string
@@ -160,8 +225,8 @@ func main() {
 		getCachedActiveLiveChatLoop(client, videoId)
 		getVideo(client, videoId)
 	case "archive":
-		//startCollectionArchiveLiveChat(client, videoId)
-		//getArchiveLiveChat(client, videoId)
+		startCollectionArchiveLiveChat(client, videoId)
+		getArchiveLiveChatLoop(client, videoId)
 		getVideo(client, videoId)
 	}
 }
