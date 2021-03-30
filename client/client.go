@@ -87,6 +87,52 @@ func pollActiveLiveChat(client pb.YlccClient, videoId string) {
 	}
 }
 
+
+func getCachedActiveLiveChat(client pb.YlccClient, videoId string, pageToken string) (string, error) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60 * time.Second,
+	)
+	defer cancel()
+	request := &pb.GetCachedActiveLiveChatRequest {
+		VideoId: videoId,
+		PageToken: pageToken,
+	}
+	response, err := client.GetCachedActiveLiveChat(ctx, request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return "", err
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		fmt.Printf("%v", response.Status.Message)
+		return "", fmt.Errorf("%v", response.Status.Message)
+	}
+	if len(response.ActiveLiveChatMessages) == 0 {
+		fmt.Printf("no message")
+		return "", fmt.Errorf("no message")
+	}
+	for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
+		fmt.Printf("%+v", activeLiveChatMessage)
+	}
+	return response.NextPageToken, nil
+}
+
+
+func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
+	pageToken := ""
+	for {
+		nextPageToken, err := getCachedActiveLiveChat(client, videoId, pageToken)
+		if  err != nil {
+			fmt.Printf("%v", err)
+		}
+		if nextPageToken == "" {
+			break
+		}
+		pageToken = nextPageToken
+	}
+}
+
+
 func main() {
 	var mode  string
 	var videoId string
@@ -111,7 +157,7 @@ func main() {
 		pollActiveLiveChat(client, videoId)
 		getVideo(client, videoId)
 	case "activeCache":
-		//getCachedActiveLiveChat(client, videoId)
+		getCachedActiveLiveChatLoop(client, videoId)
 		getVideo(client, videoId)
 	case "archive":
 		//startCollectionArchiveLiveChat(client, videoId)
