@@ -87,8 +87,7 @@ func pollActiveLiveChat(client pb.YlccClient, videoId string) {
 	}
 }
 
-
-func getCachedActiveLiveChat(client pb.YlccClient, videoId string, pageToken string) (string, error) {
+func getCachedActiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, error) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		60 * time.Second,
@@ -96,39 +95,39 @@ func getCachedActiveLiveChat(client pb.YlccClient, videoId string, pageToken str
 	defer cancel()
 	request := &pb.GetCachedActiveLiveChatRequest {
 		VideoId: videoId,
-		PageToken: pageToken,
+		Offset: offset,
+		Count: count,
 	}
 	response, err := client.GetCachedActiveLiveChat(ctx, request)
 	if err != nil {
 		fmt.Printf("%v", err)
-		return "", err
+		return false, err
 	}
 	if response.Status.Code != pb.Code_SUCCESS {
 		fmt.Printf("%v", response.Status.Message)
-		return "", fmt.Errorf("%v", response.Status.Message)
+		return false, fmt.Errorf("%v", response.Status.Message)
 	}
 	if len(response.ActiveLiveChatMessages) == 0 {
-		fmt.Printf("no message")
-		return "", fmt.Errorf("no message")
+		return false, nil
 	}
 	for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
 		fmt.Printf("%+v", activeLiveChatMessage)
 	}
-	return response.NextPageToken, nil
+	return true, nil
 }
 
-
 func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
-	pageToken := ""
+	var offset int64 = 0
+	var count int64 = 2000
 	for {
-		nextPageToken, err := getCachedActiveLiveChat(client, videoId, pageToken)
+		ok, err := getCachedActiveLiveChat(client, videoId, offset, count)
 		if  err != nil {
 			fmt.Printf("%v", err)
 		}
-		if nextPageToken == "" {
+		if !ok {
 			break
 		}
-		pageToken = nextPageToken
+		offset += count
 	}
 }
 
@@ -154,7 +153,8 @@ func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
 	return
 }
 
-func getArchiveLiveChat(client pb.YlccClient, videoId string, pageToken string) (string, error) {
+func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, error) {
+RETRY:
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
 		60 * time.Second,
@@ -162,41 +162,45 @@ func getArchiveLiveChat(client pb.YlccClient, videoId string, pageToken string) 
 	defer cancel()
 	request := &pb.GetArchiveLiveChatRequest {
 		VideoId: videoId,
-		PageToken: pageToken,
+		Offset: offset,
+		Count: count,
 	}
 	response, err := client.GetArchiveLiveChat(ctx, request)
 	if err != nil {
 		fmt.Printf("%v", err)
-		return "", err
+		return false, err
+	}
+	if response.Status.Code == pb.Code_IN_PROGRESS {
+		time.Sleep(5 * time.Second)
+		goto RETRY
 	}
 	if response.Status.Code != pb.Code_SUCCESS {
 		fmt.Printf("%v", response.Status.Message)
-		return "", fmt.Errorf("%v", response.Status.Message)
+		return false, fmt.Errorf("%v", response.Status.Message)
 	}
 	if len(response.ArchiveLiveChatMessages) == 0 {
-		fmt.Printf("no message")
-		return "", fmt.Errorf("no message")
+		return false, nil
 	}
 	for _, archiveLiveChatMessage := range response.ArchiveLiveChatMessages {
 		fmt.Printf("%+v", archiveLiveChatMessage)
 	}
-	return response.NextPageToken, nil
+	return true, nil
 }
 
 func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
-	pageToken := ""
+	var offset int64 = 0
+	var count int64 = 2000
 	for {
-		nextPageToken, err := getArchiveLiveChat(client, videoId, pageToken)
+		ok, err := getArchiveLiveChat(client, videoId, offset, count)
 		if  err != nil {
 			fmt.Printf("%v", err)
 		}
-		if nextPageToken == "" {
+		if !ok {
 			break
 		}
-		pageToken = nextPageToken
+		offset += count
 	}
 }
-
 
 func main() {
 	var mode  string

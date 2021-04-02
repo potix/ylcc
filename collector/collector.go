@@ -218,7 +218,7 @@ func (c *Collector) getVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse,
 		return &pb.GetVideoResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
@@ -226,7 +226,7 @@ func (c *Collector) getVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse,
 		return &pb.GetVideoResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
@@ -245,7 +245,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
 	if err != nil {
@@ -265,7 +265,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
@@ -274,7 +274,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	video := &pb.Video {
                 VideoId: youtubeVideo.Id,
@@ -301,7 +301,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	if video.ActiveLiveChatId == "" {
 		status.Code = pb.Code_NOT_FOUND
@@ -310,7 +310,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
         }
 	go c.collectActiveLiveChatFromYoutube(youtubeVideo, youtubeService)
 	status.Code = pb.Code_SUCCESS
@@ -330,7 +330,7 @@ func (c *Collector) getCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 		return &pb.GetCachedActiveLiveChatResponse {
 			Status: status,
 			ActiveLiveChatMessages: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	activeLiveChatMessages, err :=  c.dbOperator.GetActiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
 	if err != nil {
@@ -340,7 +340,7 @@ func (c *Collector) getCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 		return &pb.GetCachedActiveLiveChatResponse {
 			Status: status,
 			ActiveLiveChatMessages: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
@@ -450,7 +450,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
 	if err != nil {
@@ -460,7 +460,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
 	if err != nil {
@@ -470,7 +470,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
@@ -479,7 +479,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	video := &pb.Video {
                 VideoId: youtubeVideo.Id,
@@ -506,7 +506,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	if video.ActiveLiveChatId != "" {
 		status.Code = pb.Code_NOT_FOUND
@@ -515,7 +515,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
 			Video: video,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
         }
 	go c.collectArchiveLiveChatFromYoutube(video.ChannelId, video.VideoId, request.Replace)
 	status.Code = pb.Code_SUCCESS
@@ -535,7 +535,7 @@ func (c *Collector) getArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 		return &pb.GetArchiveLiveChatResponse {
 			Status: status,
 			ArchiveLiveChatMessages: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	archiveLiveChatMessages, err :=  c.dbOperator.GetArchiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
 	if err != nil {
@@ -545,7 +545,7 @@ func (c *Collector) getArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 		return &pb.GetArchiveLiveChatResponse {
 			Status: status,
 			ArchiveLiveChatMessages: nil,
-		}, fmt.Errorf("%v", status.Message)
+		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v, offset = %v, count)", request.VideoId, request.Offset, request.Count)
