@@ -153,7 +153,7 @@ func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
 	return
 }
 
-func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, error) {
+func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, bool, error) {
 RETRY:
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
@@ -168,18 +168,17 @@ RETRY:
 	response, err := client.GetArchiveLiveChat(ctx, request)
 	if err != nil {
 		fmt.Printf("%v", err)
-		return false, err
+		return false, false, err
 	}
 	if response.Status.Code == pb.Code_IN_PROGRESS {
-		time.Sleep(5 * time.Second)
-		goto RETRY
+		return false, true, err
 	}
 	if response.Status.Code != pb.Code_SUCCESS {
 		fmt.Printf("%v", response.Status.Message)
-		return false, fmt.Errorf("%v", response.Status.Message)
+		return false, false, fmt.Errorf("%v", response.Status.Message)
 	}
 	if len(response.ArchiveLiveChatMessages) == 0 {
-		return false, nil
+		return false, false,  nil
 	}
 	for _, archiveLiveChatMessage := range response.ArchiveLiveChatMessages {
 		fmt.Printf("%+v", archiveLiveChatMessage)
@@ -191,9 +190,13 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 	var offset int64 = 0
 	var count int64 = 2000
 	for {
-		ok, err := getArchiveLiveChat(client, videoId, offset, count)
+		ok, retry, err := getArchiveLiveChat(client, videoId, offset, count)
 		if  err != nil {
 			fmt.Printf("%v", err)
+		}
+		if retry {
+			time.Sleep(5 * time.Second)
+			continue
 		}
 		if !ok {
 			break
