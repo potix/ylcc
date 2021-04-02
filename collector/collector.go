@@ -4,22 +4,19 @@ import (
         "fmt"
         "log"
         "sync"
-        "time"
-        "context"
-        "google.golang.org/api/option"
-	"google.golang.org/api/transport/http"
+        "errors"
         "google.golang.org/api/youtube/v3"
-	 pb "github.com/potix/ylcc/protocol"
+	"github.com/potix/ylcc/youtubehelper"
+	pb "github.com/potix/ylcc/protocol"
+
 )
 
 const (
-	messageMax int64 = 2000
-	retryMax int = 10
+        bulkMessageMax int64 = 2000
 )
 
 type Collector struct {
 	verbose                               bool
-	apiKey                                string
 	dbOperator                            *DatabaseOperator
 	requestedVideoForActiveLiveChatMutex  *sync.Mutex
 	requestedVideoForActiveLiveChat	      map[string]bool
@@ -30,7 +27,9 @@ type Collector struct {
 	unsubscribeActiveLiveChatCh           chan *subscribeActiveLiveChatParams
 	publisherFinishRequestCh              chan int
 	publisherFinishResponseCh             chan int
-	archiveLiveChatCollector              *ArchiveLiveChatCollector
+	activeLiveChatCollector               *youtubehelper.ActiveLiveChatCollector
+	archiveLiveChatCollector              *youtubehelper.ArchiveLiveChatCollector
+
 }
 
 type publishActiveLiveChatMessagesParams struct {
@@ -109,76 +108,39 @@ func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) (
 	return true
 }
 
-func (c *Collector) createYoutubeService() (*youtube.Service, error) {
-        ctx := context.Background()
-        newClient, _, err := http.NewClient(ctx, option.WithAPIKey(c.apiKey))
-        if err != nil {
-		return nil, fmt.Errorf("can not create http clinet: %w", err)
-        }
-        youtubeService, err := youtube.New(newClient)
-        if err != nil {
-		return nil, fmt.Errorf("can not create youtube service: %w", err)
-        }
-	return youtubeService, nil
-}
-
-func (c *Collector) getVideoFromYoutube(videoId string, youtubeService *youtube.Service) (*pb.Video, bool, error) {
-        videosListCall := youtubeService.Videos.List([]string{"snippet", "contentDetails", "liveStreamingDetails", "status"})
-        videosListCall.Id(videoId)
-        videoListResponse, err := videosListCall.Do()
-        if err != nil {
-                return nil, false, fmt.Errorf("can not get videos: %w", err)
-        }
-        if len(videoListResponse.Items) < 1 {
-                return nil, true, nil
-        }
-	item := videoListResponse.Items[0]
-        video := &pb.Video {
-                VideoId: item.Id,
-                ChannelId: item.Snippet.ChannelId,
-                CategoryId: item.Snippet.CategoryId,
-                Title: item.Snippet.Title,
-                Description: item.Snippet.Description,
-                PublishedAt: item.Snippet.PublishedAt,
-                Duration: item.ContentDetails.Duration,
-                ActiveLiveChatId: item.LiveStreamingDetails.ActiveLiveChatId,
-                ActualStartTime: item.LiveStreamingDetails.ActualStartTime,
-                ActualEndTime: item.LiveStreamingDetails.ActualEndTime,
-                ScheduledStartTime: item.LiveStreamingDetails.ScheduledStartTime,
-                ScheduledEndTime: item.LiveStreamingDetails.ScheduledEndTime,
-                PrivacyStatus: item.Status.PrivacyStatus,
-                UploadStatus: item.Status.UploadStatus,
-                Embeddable : item.Status.Embeddable,
-        }
-        return video, true, nil
-}
-
-func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId string, youtubeService *youtube.Service, activeLiveChatId string) {
-	pageToken := ""
+func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtubeService *youtube.Service) {
+	params, err := c.activeLiveChatCollector.CreateParams(video)
+	if err != nil {
+		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
+			err: err,
+			videoId: video.Id,
+			activeLiveChatMessages: nil,
+		}
+		c.unregisterRequestedVideoForActiveLiveChat(video.Id)
+		log.Printf("can not create params of active live chat collector: %v\n", err)
+                return
+	}
         for {
-                liveChatMessagesListCall := youtubeService.LiveChatMessages.List(activeLiveChatId, []string{"snippet", "authorDetails"})
-                liveChatMessagesListCall.PageToken(pageToken)
-                liveChatMessagesListCall.MaxResults(messageMax)
-                liveChatMessageListResponse, err := liveChatMessagesListCall.Do()
+                liveChatMessageListResponse, err :=  c.activeLiveChatCollector.GetActiveLiveChat(params, youtubeService, bulkMessageMax)
                 if err != nil {
 			c.publishActiveLiveChatCh <-&publishActiveLiveChatMessagesParams {
 				err: err,
-				videoId: videoId,
+				videoId: video.Id,
 				activeLiveChatMessages: nil,
 			}
-			c.unregisterRequestedVideoForActiveLiveChat(videoId)
+			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 			if c.verbose {
 				log.Printf("can not get live chat messages: %v\n", err)
 			}
                         return
                 }
-		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, messageMax)
+		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, bulkMessageMax)
                 for _, item := range liveChatMessageListResponse.Items {
                         if item.Snippet.SuperChatDetails != nil {
 				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
 					MessageId: item.Id,
-					ChannelId: channelId,
-					VideoId: videoId,
+					ChannelId: video.Snippet.ChannelId,
+					VideoId: video.Id,
 					ApiEtag: liveChatMessageListResponse.Etag,
 					AuthorChannelId: item.AuthorDetails.ChannelId,
 					AuthorChannelUrl: item.AuthorDetails.ChannelUrl,
@@ -193,14 +155,14 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
 					IsSuperChat: true,
 					AmountDisplayString: item.Snippet.SuperChatDetails.AmountDisplayString,
 					Currency: item.Snippet.SuperChatDetails.AmountDisplayString,
-					PageToken: pageToken,
+					PageToken: params.GetPageToken(),
 				}
 				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
                         } else if item.Snippet.TextMessageDetails != nil {
 				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
 					MessageId: item.Id,
-					ChannelId: channelId,
-					VideoId: videoId,
+					ChannelId: video.Snippet.ChannelId,
+					VideoId: video.Id,
 					ApiEtag: liveChatMessageListResponse.Etag,
 					AuthorChannelId: item.AuthorDetails.ChannelId,
 					AuthorChannelUrl: item.AuthorDetails.ChannelUrl,
@@ -215,7 +177,7 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
 					IsSuperChat: false,
 					AmountDisplayString: "",
 					Currency: "",
-					PageToken: pageToken,
+					PageToken: params.GetPageToken(),
 				}
 				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
                         }
@@ -223,20 +185,27 @@ func (c *Collector) collectActiveLiveChatFromYoutube(channelId string, videoId s
 		if err := c.dbOperator.UpdateActiveLiveChatMessages(activeLiveChatMessages); err != nil {
 			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
 				err: err,
-				videoId: videoId,
+				videoId: video.Id,
 				activeLiveChatMessages: nil,
 			}
-			c.unregisterRequestedVideoForActiveLiveChat(videoId)
+			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 			log.Printf("can not update active live chat messages in database: %v\n", err)
                         return
                 }
 		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
 			err: nil,
-			videoId: videoId,
+			videoId: video.Id,
 			activeLiveChatMessages: activeLiveChatMessages,
 		}
-		pageToken = liveChatMessageListResponse.NextPageToken
-                time.Sleep(time.Duration(liveChatMessageListResponse.PollingIntervalMillis) * time.Millisecond)
+		ok := c.activeLiveChatCollector.Next(params, liveChatMessageListResponse)
+		if !ok {
+			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
+				err: errors.New("EOF"),
+				videoId: video.Id,
+				activeLiveChatMessages: nil,
+			}
+			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
+		}
         }
 }
 
@@ -278,7 +247,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
-	youtubeService, err := c.createYoutubeService()
+	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
@@ -288,14 +257,14 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
-	video, ok, err := c.getVideoFromYoutube(request.VideoId, youtubeService)
+	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
-			Video: video,
+			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
 	if !ok {
@@ -304,9 +273,26 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
 		return &pb.StartCollectionActiveLiveChatResponse {
 			Status: status,
-			Video: video,
+			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
+	video := &pb.Video {
+                VideoId: youtubeVideo.Id,
+                ChannelId: youtubeVideo.Snippet.ChannelId,
+                CategoryId: youtubeVideo.Snippet.CategoryId,
+                Title: youtubeVideo.Snippet.Title,
+                Description: youtubeVideo.Snippet.Description,
+                PublishedAt: youtubeVideo.Snippet.PublishedAt,
+                Duration: youtubeVideo.ContentDetails.Duration,
+                ActiveLiveChatId: youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
+                ActualStartTime: youtubeVideo.LiveStreamingDetails.ActualStartTime,
+                ActualEndTime: youtubeVideo.LiveStreamingDetails.ActualEndTime,
+                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
+                ScheduledEndTime: youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
+                PrivacyStatus: youtubeVideo.Status.PrivacyStatus,
+                UploadStatus: youtubeVideo.Status.UploadStatus,
+                Embeddable : youtubeVideo.Status.Embeddable,
+        }
         err = c.dbOperator.UpdateVideo(video)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
@@ -326,7 +312,7 @@ func (c *Collector) startCollectionActiveLiveChat(request *pb.StartCollectionAct
 			Video: video,
 		}, fmt.Errorf("%v", status.Message)
         }
-	go c.collectActiveLiveChatFromYoutube(video.ChannelId, video.VideoId, youtubeService, video.ActiveLiveChatId)
+	go c.collectActiveLiveChatFromYoutube(youtubeVideo, youtubeService)
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
 	return &pb.StartCollectionActiveLiveChatResponse {
@@ -393,7 +379,7 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
 			c.unregisterRequestedVideoForArchiveLiveChat(videoId)
                         return
                 }
-		archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, messageMax)
+		archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, bulkMessageMax)
 		for _, cact := range resp.ContinuationContents.LiveChatContinuation.Actions {
                         for _, iact := range cact.ReplayChatItemAction.Actions {
                                 if iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID != "" {
@@ -447,8 +433,8 @@ func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId 
 			log.Printf("can not update archive live chat messages in database: %v\n", err)
                         return
                 }
-		next := c.archiveLiveChatCollector.Next(params, resp)
-                if !next {
+		ok := c.archiveLiveChatCollector.Next(params, resp)
+                if !ok {
                         break
                 }
         }
@@ -466,7 +452,7 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
-	youtubeService, err := c.createYoutubeService()
+	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
@@ -476,14 +462,14 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
-	video, ok, err := c.getVideoFromYoutube(request.VideoId, youtubeService)
+	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
-			Video: video,
+			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
 	if !ok {
@@ -492,9 +478,26 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
 		return &pb.StartCollectionArchiveLiveChatResponse {
 			Status: status,
-			Video: video,
+			Video: nil,
 		}, fmt.Errorf("%v", status.Message)
 	}
+	video := &pb.Video {
+                VideoId: youtubeVideo.Id,
+                ChannelId: youtubeVideo.Snippet.ChannelId,
+                CategoryId: youtubeVideo.Snippet.CategoryId,
+                Title: youtubeVideo.Snippet.Title,
+                Description: youtubeVideo.Snippet.Description,
+                PublishedAt: youtubeVideo.Snippet.PublishedAt,
+                Duration: youtubeVideo.ContentDetails.Duration,
+                ActiveLiveChatId: youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
+                ActualStartTime: youtubeVideo.LiveStreamingDetails.ActualStartTime,
+                ActualEndTime: youtubeVideo.LiveStreamingDetails.ActualEndTime,
+                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
+                ScheduledEndTime: youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
+                PrivacyStatus: youtubeVideo.Status.PrivacyStatus,
+                UploadStatus: youtubeVideo.Status.UploadStatus,
+                Embeddable : youtubeVideo.Status.Embeddable,
+        }
         err = c.dbOperator.UpdateVideo(video)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
@@ -659,7 +662,6 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 	}
 	return &Collector {
 		verbose: verbose,
-		apiKey: apiKeys[0],
 		dbOperator: databaseOperator,
 		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
 		requestedVideoForActiveLiveChat: make(map[string]bool),
@@ -670,6 +672,8 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		unsubscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
 		publisherFinishRequestCh: make(chan int),
 		publisherFinishResponseCh: make(chan int),
-		archiveLiveChatCollector: NewArchiveLiveChatCollector(),
+		activeLiveChatCollector: youtubehelper.NewActiveLiveChatCollector(verbose, apiKeys[0]),
+		archiveLiveChatCollector: youtubehelper.NewArchiveLiveChatCollector(verbose),
+
 	}, nil
 }
