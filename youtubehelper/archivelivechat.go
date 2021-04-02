@@ -1,4 +1,4 @@
-package collector
+package youtubehelper
 
 import (
     "fmt"
@@ -25,7 +25,8 @@ func (a ArchiveLiveChatParams) GetContinuation() (string) {
 }
 
 type ArchiveLiveChatCollector struct {
-	res map[string]*regexp.Regexp
+	verbose bool
+	res     map[string]*regexp.Regexp
 }
 
 func (a *ArchiveLiveChatCollector) httpRequest(url string, method string, header map[string]string, reqBody io.Reader) ([]byte, error) {
@@ -64,7 +65,6 @@ func (a *ArchiveLiveChatCollector)getParam(re *regexp.Regexp, body []byte) (stri
 }
 
 func (a *ArchiveLiveChatCollector) GetParams(videoId string) (ArchiveLiveChatParams, error) {
-	// videoのページを取り出す
 	url := youtubeBaseUrl + videoId
 	header := make(map[string]string)
 	header["User-Agent"] = userAgent
@@ -72,7 +72,6 @@ func (a *ArchiveLiveChatCollector) GetParams(videoId string) (ArchiveLiveChatPar
 	if err != nil {
 		return nil, fmt.Errorf("can not get video page (url = %v,  heade = %+v): %v", url, header, err)
 	}
-	// videoページ内のパラメータを抽出
 	params := make(map[string]string)
 	params["offsetMs"] = "0"
 	for name, re := range a.res {
@@ -159,7 +158,7 @@ func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetL
 	}
 }
 
-func NewArchiveLiveChatCollector() (*ArchiveLiveChatCollector) {
+func NewArchiveLiveChatCollector(verbose bool) (*ArchiveLiveChatCollector) {
 	res := make(map[string]*regexp.Regexp)
 	res["continuation"] = regexp.MustCompile(`"liveChatRenderer".+?"continuations".+?"reloadContinuationData".+?"continuation"[ ]*:[ ]*"([^"]+)"`)
 	res["visitorData"] = regexp.MustCompile(`"visitorData"[ ]*:[ ]*"([^"]+)"`)
@@ -179,6 +178,7 @@ func NewArchiveLiveChatCollector() (*ArchiveLiveChatCollector) {
 	res["platform"] = regexp.MustCompile(`"platform"[ ]*:[ ]*"([^"]+)"`)
 	res["clientFormFactor"] = regexp.MustCompile(`"clientFormFactor"[ ]*:[ ]*"([^"]+)"`)
 	return &ArchiveLiveChatCollector{
+		verbose: verbose,
 		res: res,
 	}
 }
