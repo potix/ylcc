@@ -121,7 +121,7 @@ func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
 
 func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId string, offset int64, count int64) ([]*pb.ActiveLiveChatMessage, error) {
 	activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0)
-        activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? OFFSET = ? LIMIT = ?`, videoId, offset, count)
+        activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
         if err != nil {
 		return nil, fmt.Errorf("can not get activeLiveChatMessage by videoId and token: %w", err)
         }
@@ -250,7 +250,7 @@ func (d *DatabaseOperator) DeleteActiveLiveChatMessagesByLastUpdate(lastUpdate i
 
 func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId string, offset int64, count int64) ([]*pb.ArchiveLiveChatMessage, error) {
 	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
-        archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? OFFSET = ? LIMIT = ?`, videoId, offset, count)
+        archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
         if err != nil {
 		return nil, fmt.Errorf("can not get archiveLiveChatMessage by videoId and token: %w", err)
         }

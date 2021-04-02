@@ -350,22 +350,7 @@ func (c *Collector) getCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 	}, nil
 }
 
-func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId string, replace bool) {
-	if !replace {
-                count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(videoId)
-                if err != nil {
-                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                        log.Printf("can not get archive live chat from database (videoId = %v): %v", videoId, err)
-                        return
-                }
-                if count > 0 {
-                        if c.verbose {
-                                log.Printf("already exists archive live chat in database (videoId = %v)", videoId)
-                        }
-                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                        return
-                }
-        }
+func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId string) {
 	params, err := c.archiveLiveChatCollector.GetParams(videoId)
         if err != nil {
                 log.Printf("can not get params of archive live chat: %v", err)
@@ -517,7 +502,31 @@ func  (c *Collector) startCollectionArchiveLiveChat(request *pb.StartCollectionA
 			Video: video,
 		}, nil
         }
-	go c.collectArchiveLiveChatFromYoutube(video.ChannelId, video.VideoId, request.Replace)
+	if !request.Replace {
+                count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(request.VideoId)
+                if err != nil {
+			status.Code = pb.Code_INTERNAL_ERROR
+			status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
+			c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
+			return &pb.StartCollectionArchiveLiveChatResponse {
+				Status: status,
+				Video: video,
+			}, nil
+                }
+                if count > 0 {
+                        if c.verbose {
+                                log.Printf("already exists archive live chat in database (videoId = %v)", request.VideoId)
+                        }
+                        c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
+			status.Code = pb.Code_SUCCESS
+			status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
+			return &pb.StartCollectionArchiveLiveChatResponse {
+				Status: status,
+				Video: video,
+			}, nil
+                }
+        }
+	go c.collectArchiveLiveChatFromYoutube(video.ChannelId, video.VideoId)
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
 	return &pb.StartCollectionArchiveLiveChatResponse {
