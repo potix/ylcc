@@ -328,7 +328,7 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 			lastUpdate
 		    ) VALUES (
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-			?, ?, ?
+			?, ?, ?, ?
 		    )`,
 		    archiveLiveChatMessage.MessageId,
 		    archiveLiveChatMessage.ChannelId,
@@ -459,7 +459,7 @@ func (d *DatabaseOperator) createTables() (error) {
 		authorExternalChannelId TEXT NOT NULL,
 		messageText             TEXT NOT NULL,
 		purchaseAmountText      TEXT NOT NULL,
-		isPaid                  INTEGER NOT NULL
+		isPaid                  INTEGER NOT NULL,
 		timestampUsec           TEXT NOT NULL,
 		timestampText           TEXT NOT NULL,
 		videoOffsetTimeMsec     TEXT NOT NULL,
