@@ -1,269 +1,488 @@
 package collector
 
 import (
-	"fmt"
-	"time"
-	"encoding/json"
-	"strings"
-	"log"
-	"bytes"
-	"net/http"
-	"io/ioutil"
-	"github.com/PuerkitoBio/goquery"
-	 pb "github.com/potix/ylcc/protocol"
+    "fmt"
+    "net/http"
+    "io"
+    "io/ioutil"
+    "regexp"
+    "encoding/json"
+    "bytes"
+    "net/url"
 )
 
 const(
-	youtubeBaseUrl string = "https://www.youtube.com/watch?v="
-	youtubeLiveChatBaseUrl string = "https://www.youtube.com/live_chat_replay?continuation="
-	userAgent string = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:70.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36 Gecko/20100101 Firefox/70.0"
-	maxRetry int    = 10
+        youtubeBaseUrl string = "https://www.youtube.com/watch?v="
+        youtubeLiveChatReplayBaseUrl string = "https://www.youtube.com/live_chat_replay?continuation="
+        youtubeLiveChatApiBaseUrl string = "https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key="
+        userAgent string = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.91 Safari/537.36"
 )
 
-type archiveLiveChatMessagesParams struct {
-	last    bool
-	prevUrl string
-	url     string
+type ArchiveLiveChatParams map[string]string
+
+func (a ArchiveLiveChatParams) GetContinuation() (string) {
+	return a["continuation"]
 }
 
-func newArchiveLiveChatMessagesParams(url string) (*archiveLiveChatMessagesParams) {
-	return &archiveLiveChatMessagesParams {
-		last: false,
-		prevUrl: "",
-		url: url,
-	}
+type ArchiveLiveChatCollector struct {
+	res map[string]*regexp.Regexp
 }
 
-func (l *archiveLiveChatMessagesParams) updateUrl(id string) {
-	l.prevUrl = l.url
-	if id == "" {
-		l.url = ""
-		return
-	} else {
-		l.url = youtubeLiveChatBaseUrl + id
+func (a *ArchiveLiveChatCollector) httpRequest(url string, method string, header map[string]string, reqBody io.Reader) ([]byte, error) {
+        req, err := http.NewRequest(method, url, reqBody)
+        if err != nil {
+                return nil, fmt.Errorf("can not create http request (url = %v): %w", url, err)
+        }
+	for k, v := range header {
+		req.Header.Set(k, v)
 	}
+        client := new(http.Client)
+        resp, err := client.Do(req)
+        if err != nil {
+                return nil, fmt.Errorf("can not request of http (url = %v): %w", url, err)
+        }
+        defer resp.Body.Close()
+        if resp.StatusCode != 200 {
+                return nil, fmt.Errorf("response have unexpected status (url = %v, status = %v)", url, resp.Status)
+        }
+        respBody, err := ioutil.ReadAll(resp.Body)
+        if err != nil {
+                return nil, fmt.Errorf("can not read body (url = %v): %w", url, err)
+        }
+        return respBody, nil
 }
 
-func (l *archiveLiveChatMessagesParams) getPrevUrl() (string) {
-	return l.prevUrl
+func (a *ArchiveLiveChatCollector)getParam(re *regexp.Regexp, body []byte) (string, error) {
+	v := re.FindAllSubmatch(body, -1)
+	if len(v) == 0 {
+		return "", fmt.Errorf("not found parameter '%v'", re.String())
+	}
+	if len(v[0]) <= 1 {
+		return "", fmt.Errorf("not found parameter '%v'", re.String())
+	}
+	return string(v[0][1]), nil
 }
 
-func (l *archiveLiveChatMessagesParams) getUrl() (string) {
-	return l.url
-}
-
-func (c *Collector) getPage(url string, useUserAgent bool) ([]byte, error) {
-	if c.verbose {
-		log.Printf("retrive url = %v", url)
-	}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("can not create http request (url = %v): %w", url, err)
-	}
-	if useUserAgent {
-		req.Header.Set("User-Agent", userAgent)
-	}
-	client := new(http.Client)
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("can not request of http (url = %v): %w", url, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("response have unexpected status (url = %v, status = %v)", url, resp.Status)
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("can not read body (url = %v): %w", url, err)
-	}
-	return body, nil
-}
-
-func (c *Collector) getArchiveLiveChatFirstLiveChatReplayUrl(videoId string) (string, error) {
+func (a *ArchiveLiveChatCollector) GetParams(videoId string) (ArchiveLiveChatParams, error) {
+	// videoのページを取り出す
 	url := youtubeBaseUrl + videoId
-        body, err := c.getPage(url, false)
-        if err != nil {
-		return "", fmt.Errorf("can not get video page (url = %v): %w", url, err)
-        }
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
+	header := make(map[string]string)
+	header["User-Agent"] = userAgent
+	body, err := a.httpRequest(url, "GET", header, nil)
 	if err != nil {
-		return "", fmt.Errorf("can not parse body (url = %v): %w", url, err)
+		return nil, fmt.Errorf("can not get video page (url = %v,  heade = %+v): %v", url, header, err)
 	}
-	var firstLiveChatReplayUrl string
-	doc.Find("#live-chat-iframe").Each(func(i int, s *goquery.Selection) {
-		url, ok := s.Attr("src")
-		if !ok {
-			return
+	// videoページ内のパラメータを抽出
+	params := make(map[string]string)
+	params["offsetMs"] = "0"
+	for name, re := range a.res {
+		v, err := a.getParam(re, body)
+		if err != nil {
+			return nil, fmt.Errorf("can not get param (name = %v): %v", name, err)
 		}
-		firstLiveChatReplayUrl = url
-	})
-	return firstLiveChatReplayUrl, nil
+		params[name] = v
+	}
+	return params, nil
 }
 
-
-
-func (c *Collector) getArchiveLiveChatYtInitialData(url string)(string, error) {
-        body, err := c.getPage(url, true)
+func (a *ArchiveLiveChatCollector) buildRequestBody(params ArchiveLiveChatParams) (*bytes.Buffer, error) {
+        request := &GetLiveChatRequest{}
+        request.Context.Client.Hl = params["hl"]
+        request.Context.Client.Gl = params["gl"]
+        request.Context.Client.RemoteHost = params["remoteHost"]
+        request.Context.Client.DeviceMake = params["deviceMake"]
+        request.Context.Client.DeviceModel = params["deviceModel"]
+        request.Context.Client.VisitorData = params["visitorData"]
+        request.Context.Client.UserAgent = params["userAgent"]
+        request.Context.Client.ClientName = params["clientName"]
+        request.Context.Client.ClientVersion = params["clientVersion"]
+        request.Context.Client.OsName = params["osName"]
+        request.Context.Client.OsVersion = params["osVersion"]
+        request.Context.Client.OriginalURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
+        request.Context.Client.Platform = params["platform"]
+        request.Context.Client.ClientFormFactor = params["clientFormFactor"]
+        request.Context.Client.TimeZone = "Asia/Tokyo"
+        request.Context.Client.BrowserName = params["browserName"]
+        request.Context.Client.BrowserVersion = params["browserVersion"]
+        request.Context.Client.UtcOffsetMinutes = 540
+        request.Context.Client.MainAppWebInfo.GraftURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
+        request.Context.Client.MainAppWebInfo.WebDisplayMode = "WEB_DISPLAY_MODE_BROWSER"
+        request.Context.User.LockedSafetyMode = false
+        request.Context.Request.UseSsl = true
+        request.Continuation = params["continuation"]
+        request.CurrentPlayerState.PlayerOffsetMs = params["offsetMs"]
+        requestBytes, err := json.Marshal(request)
         if err != nil {
-		return "", fmt.Errorf("can not get video page (url = %v): %w", url, err)
+                return nil, fmt.Errorf("can not convert struct to json: %v", err)
         }
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("can not parse body (url = %v): %w", url, err)
-	}
-	var yuInitialDataStr string
-	doc.Find("body>script").EachWithBreak(func(i int, s *goquery.Selection) (bool) {
-		html := s.Text()
-		if strings.Contains(html, "ytInitialData") {
-			elems := strings.SplitN(html, "=", 2)
-			if len(elems) < 2 {
-				log.Printf("can not not parse ytInitialData (url = %v, html = %v)", url, html)
-				return true
-			}
-			yuInitialDataStr = strings.TrimSuffix(strings.TrimSpace(elems[1]), ";")
-			return false
-		}
-		return true
-	})
-	if yuInitialDataStr == "" {
-		return "", fmt.Errorf("not found ytInitialData (url = %v): %w", url, err)
-	}
-	return yuInitialDataStr, nil
+        fmt.Printf("%v\n", string(requestBytes))
+        return bytes.NewBuffer(requestBytes), nil
 }
 
-func (c *Collector) getArchiveLiveChatMessages(channelId string, videoId string, params *archiveLiveChatMessagesParams)(error) {
-	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, 2000)
-	var yuInitialDataStr string
-	yuInitialDataStr, err := c.getArchiveLiveChatYtInitialData(params.getUrl())
+func (a *ArchiveLiveChatCollector) GetArchiveLiveChat(params ArchiveLiveChatParams) (*GetLiveChatRespose, error) {
+	reqBody, err := a.buildRequestBody(params)
 	if err != nil {
-		return fmt.Errorf("can not get ytInitialData (url = %v, videoId = %v): %w", params.getUrl(), videoId, err)
+		return nil, fmt.Errorf("can not build request body: %v", err)
 	}
-	if yuInitialDataStr == "" {
-		return fmt.Errorf ("not found ytInitialData (url = %v, videoId = %v)", params.getUrl(), videoId)
+	url := youtubeLiveChatApiBaseUrl + params["innertubeApiKey"]
+	header := make(map[string]string)
+	header["User-Agent"] = userAgent
+	header["Content-Type"] = "application/json"
+	respBody, err := a.httpRequest(url, "POST", header, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("can not get archive live chat (url = %v, header = %+v, request =%v): %v", url, header, string(reqBody.Bytes()), err)
 	}
-	var ytInitialData YtInitialData
-	if err := json.Unmarshal([]byte(yuInitialDataStr), &ytInitialData); err != nil {
-		return fmt.Errorf("can not unmarshal ytInitialData (url = %v, yuInitialDataStr = %v, videoId = %v): %w", params.getUrl(), yuInitialDataStr, videoId, err)
+	resp := &GetLiveChatRespose{}
+	if err = json.Unmarshal(respBody, resp); err != nil {
+		return nil, fmt.Errorf("can not convert json to struct: %v", err)
 	}
-	var nextId string
-	if len(ytInitialData.ContinuationContents.LiveChatContinuation.Continuations) >= 2 {
-		nextId = ytInitialData.ContinuationContents.LiveChatContinuation.Continuations[0].LiveChatReplayContinuationData.Continuation
-	}
-	if c.verbose {
-		log.Printf("nextId = %v, videoId = %v", nextId, videoId)
-	}
-	for _, liveChatContinuationAction := range ytInitialData.ContinuationContents.LiveChatContinuation.Actions {
-		videoOffsetTimeMsec := liveChatContinuationAction.ReplayChatItemAction.VideoOffsetTimeMsec
-		for _, replayChatItemAction := range liveChatContinuationAction.ReplayChatItemAction.Actions {
-			clientId := replayChatItemAction.AddChatItemAction.ClientID
-			if replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText != "" {
-				timestampText := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText
-				authorName := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorName.SimpleText
-				id := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID
-				var messageText string
-				for _, run := range replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.Message.Runs {
-					messageText += run.Text
-				}
-				purchaseAmountText := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText
-				timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec
-				archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-					MessageId: id,
-					ChannelId: channelId,
-					VideoId: videoId,
-					TimestampUsec: timestampUsec,
-					ClientId: clientId,
-					AuthorName: authorName,
-					MessageText: messageText,
-					PurchaseAmountText: purchaseAmountText,
-					VideoOffsetTimeMsec: videoOffsetTimeMsec,
-					Timestamp: timestampText,
-				}
-				archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
-			} else if replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText != "" {
-				timestampText := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText
-				authorName := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText
-				id := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID
-				var messageText string
-				for _, run := range replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
-					messageText += run.Text
-				}
-				timestampUsec := replayChatItemAction.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec
-				archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-					MessageId: id,
-					ChannelId: channelId,
-					VideoId: videoId,
-					TimestampUsec: timestampUsec,
-					ClientId: clientId,
-					AuthorName: authorName,
-					MessageText: messageText,
-					PurchaseAmountText: "",
-					VideoOffsetTimeMsec: videoOffsetTimeMsec,
-					Timestamp: timestampText,
-				}
-				archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
-			}
-		}
-	}
-	if err := c.dbOperator.UpdateArchiveLiveChatMessages(params.getPrevUrl(), params.getUrl(), archiveLiveChatMessages); err != nil {
-                return fmt.Errorf("can not update archhive live chat in database (videoId = %v): %w", videoId, err)
-        }
-	params.updateUrl(nextId)
-	return nil
+	return resp, nil
 }
 
-func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId string, replace bool) {
-        if !replace {
-                count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(videoId)
-                if err != nil {
-                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                        log.Printf("can not get archive live chat from database (videoId = %v): %v", videoId, err)
-                        return
-                }
-                if count > 0 {
-                        if c.verbose {
-                                log.Printf("already exists archive live chat in database (videoId = %v)", videoId)
-                        }
-                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                        return
+func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetLiveChatRespose) (bool) {
+	params["continuation"] = ""
+	for _, c := range resp.ContinuationContents.LiveChatContinuation.Continuations {
+                if c.LiveChatReplayContinuationData.Continuation != ""  {
+                        params["continuation"] = c.LiveChatReplayContinuationData.Continuation
                 }
         }
-        firstLiveChatReplayUrl, err := c.getArchiveLiveChatFirstLiveChatReplayUrl(videoId)
-        if err != nil {
-                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                log.Printf ("can not get first live chat replay url (videoId = %v): %w", videoId, err)
-                return
-        }
-        if c.verbose {
-                log.Printf("first live chat replay url = %v", firstLiveChatReplayUrl)
-        }
-        if firstLiveChatReplayUrl == "" {
-                if c.verbose {
-                        log.Printf("skip collect archive live chat because can not get first live chat replay url")
-                }
-                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                return
-        }
-        params := newArchiveLiveChatMessagesParams(firstLiveChatReplayUrl)
-        for {
-                retry := 0
-                for {
-                        if err := c.getArchiveLiveChatMessages(channelId, videoId, params); err != nil {
-                                retry += 1
-                                log.Printf("can not get live chat (videoId = %v, nextUrl = %v), retry ...: %v", videoId, params.getUrl(), err)
-                                time.Sleep(time.Second)
-                                if retry > retryMax {
-                                        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                                        log.Printf("... giveup, can not get live chat (videoId = %v, nextUrl = %v): %v", videoId, params.getUrl(), err)
-                                        return
-                                }
-                                continue
-                        }
-                        break;
-                }
-                if params.getUrl() == "" {
+        for i := len(resp.ContinuationContents.LiveChatContinuation.Actions) - 1; i > 0; i-- {
+                if resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec != "" {
+                        params["offsetMs"] = resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec
                         break
                 }
         }
-        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-        return
+	if params["continuation"] == "" {
+		return false
+	} else {
+		return true
+	}
 }
+
+func NewArchiveLiveChatCollector() (*ArchiveLiveChatCollector) {
+	res := make(map[string]*regexp.Regexp)
+	res["continuation"] = regexp.MustCompile(`"liveChatRenderer".+?"continuations".+?"reloadContinuationData".+?"continuation"[ ]*:[ ]*"([^"]+)"`)
+	res["visitorData"] = regexp.MustCompile(`"visitorData"[ ]*:[ ]*"([^"]+)"`)
+	res["innertubeApiKey"] = regexp.MustCompile(`"innertubeApiKey"[ ]*:[ ]*"([^"]+)"`)
+	res["browserName"] = regexp.MustCompile(`"browserName"[ ]*:[ ]*"([^"]+)"`)
+	res["browserVersion"] = regexp.MustCompile(`"browserVersion"[ ]*:[ ]*"([^"]+)"`)
+	res["clientName"] = regexp.MustCompile(`"clientName"[ ]*:[ ]*"([^"]+)"`)
+	res["clientVersion"] = regexp.MustCompile(`"clientVersion"[ ]*:[ ]*"([^"]+)"`)
+	res["remoteHost"] = regexp.MustCompile(`"remoteHost"[ ]*:[ ]*"([^"]+)"`)
+	res["gl"] = regexp.MustCompile(`"GL"[ ]*:[ ]*"([^"]+)"`)
+	res["hl"] = regexp.MustCompile(`"HL"[ ]*:[ ]*"([^"]+)"`)
+	res["osName"] = regexp.MustCompile(`"osName"[ ]*:[ ]*"([^"]+)"`)
+	res["osVersion"] = regexp.MustCompile(`"osVersion"[ ]*:[ ]*"([^"]+)"`)
+	res["deviceMake"] = regexp.MustCompile(`"deviceMake"[ ]*:[ ]*"([^"]*)"`)
+	res["deviceModel"] = regexp.MustCompile(`"deviceModel"[ ]*:[ ]*"([^"]*)"`)
+	res["userAgent"] = regexp.MustCompile(`"userAgent"[ ]*:[ ]*"([^"]+)"`)
+	res["platform"] = regexp.MustCompile(`"platform"[ ]*:[ ]*"([^"]+)"`)
+	res["clientFormFactor"] = regexp.MustCompile(`"clientFormFactor"[ ]*:[ ]*"([^"]+)"`)
+	return &ArchiveLiveChatCollector{
+		res: res,
+	}
+}
+
+type GetLiveChatRequest struct {
+	Context struct {
+		AdSignalsInfo struct {
+			Params []struct {
+				Key   string `json:"key"`
+				Value string `json:"value"`
+			} `json:"params,omitempty"`
+		} `json:"adSignalsInfo"`
+		Client struct {
+			BrowserName      string `json:"browserName"`
+			BrowserVersion   string `json:"browserVersion"`
+			ClientFormFactor string `json:"clientFormFactor"`
+			ClientName       string `json:"clientName"`
+			ClientVersion    string `json:"clientVersion"`
+			ConnectionType   string `json:"connectionType,omitempty"`
+			DeviceMake       string `json:"deviceMake"`
+			DeviceModel      string `json:"deviceModel"`
+			Gl               string `json:"gl"`
+			Hl               string `json:"hl"`
+			MainAppWebInfo   struct {
+				GraftURL       string `json:"graftUrl"`
+				WebDisplayMode string `json:"webDisplayMode"`
+			} `json:"mainAppWebInfo"`
+			OriginalURL        string `json:"originalUrl"`
+			OsName             string `json:"osName"`
+			OsVersion          string `json:"osVersion"`
+			Platform           string `json:"platform"`
+			RemoteHost         string `json:"remoteHost"`
+			ScreenDensityFloat int64  `json:"screenDensityFloat,omitempty"`
+			ScreenHeightPoints int64  `json:"screenHeightPoints,omitempty"`
+			ScreenPixelDensity int64  `json:"screenPixelDensity,omitempty"`
+			ScreenWidthPoints  int64  `json:"screenWidthPoints,omitempty"`
+			TimeZone           string `json:"timeZone"`
+			UserAgent          string `json:"userAgent"`
+			UserInterfaceTheme string `json:"userInterfaceTheme,omitempty"`
+			UtcOffsetMinutes   int64  `json:"utcOffsetMinutes"`
+			VisitorData        string `json:"visitorData"`
+		} `json:"client"`
+		ClientScreenNonce string `json:"clientScreenNonce,omitempty"`
+		Request           struct {
+			ConsistencyTokenJars    []interface{} `json:"consistencyTokenJars,omitempty"`
+			InternalExperimentFlags []interface{} `json:"internalExperimentFlags,,omitempty"`
+			UseSsl                  bool          `json:"useSsl"`
+		} `json:"request"`
+		User struct {
+			LockedSafetyMode bool `json:"lockedSafetyMode"`
+		} `json:"user"`
+	} `json:"context"`
+	Continuation       string `json:"continuation"`
+	CurrentPlayerState struct {
+		PlayerOffsetMs string `json:"playerOffsetMs"`
+	} `json:"currentPlayerState"`
+}
+
+type GetLiveChatRespose struct {
+	ContinuationContents struct {
+		LiveChatContinuation struct {
+			Actions []struct {
+				ReplayChatItemAction struct {
+					Actions []struct {
+						AddChatItemAction struct {
+							ClientID string `json:"clientId"`
+							Item     struct {
+								LiveChatPaidMessageRenderer struct {
+									AuthorExternalChannelID string `json:"authorExternalChannelId"`
+									AuthorName              struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"authorName"`
+									AuthorNameTextColor int64 `json:"authorNameTextColor"`
+									AuthorPhoto         struct {
+										Thumbnails []struct {
+											Height int64  `json:"height"`
+											URL    string `json:"url"`
+											Width  int64  `json:"width"`
+										} `json:"thumbnails"`
+									} `json:"authorPhoto"`
+									BodyBackgroundColor      int64 `json:"bodyBackgroundColor"`
+									BodyTextColor            int64 `json:"bodyTextColor"`
+									ContextMenuAccessibility struct {
+										AccessibilityData struct {
+											Label string `json:"label"`
+										} `json:"accessibilityData"`
+									} `json:"contextMenuAccessibility"`
+									ContextMenuEndpoint struct {
+										CommandMetadata struct {
+											WebCommandMetadata struct {
+												IgnoreNavigation bool `json:"ignoreNavigation"`
+											} `json:"webCommandMetadata"`
+										} `json:"commandMetadata"`
+										LiveChatItemContextMenuEndpoint struct {
+											Params string `json:"params"`
+										} `json:"liveChatItemContextMenuEndpoint"`
+									} `json:"contextMenuEndpoint"`
+									HeaderBackgroundColor int64  `json:"headerBackgroundColor"`
+									HeaderTextColor       int64  `json:"headerTextColor"`
+									ID                    string `json:"id"`
+									Message               struct {
+										Runs []struct {
+											Text string `json:"text"`
+										} `json:"runs"`
+									} `json:"message"`
+									PurchaseAmountText struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"purchaseAmountText"`
+									TimestampColor int64 `json:"timestampColor"`
+									TimestampText  struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"timestampText"`
+									TimestampUsec string `json:"timestampUsec"`
+								} `json:"liveChatPaidMessageRenderer"`
+								LiveChatTextMessageRenderer struct {
+									AuthorBadges []struct {
+										LiveChatAuthorBadgeRenderer struct {
+											Accessibility struct {
+												AccessibilityData struct {
+													Label string `json:"label"`
+												} `json:"accessibilityData"`
+											} `json:"accessibility"`
+											CustomThumbnail struct {
+												Thumbnails []struct {
+													URL string `json:"url"`
+												} `json:"thumbnails"`
+											} `json:"customThumbnail"`
+											Tooltip string `json:"tooltip"`
+										} `json:"liveChatAuthorBadgeRenderer"`
+									} `json:"authorBadges"`
+									AuthorExternalChannelID string `json:"authorExternalChannelId"`
+									AuthorName              struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"authorName"`
+									AuthorPhoto struct {
+										Thumbnails []struct {
+											Height int64  `json:"height"`
+											URL    string `json:"url"`
+											Width  int64  `json:"width"`
+										} `json:"thumbnails"`
+									} `json:"authorPhoto"`
+									ContextMenuAccessibility struct {
+										AccessibilityData struct {
+											Label string `json:"label"`
+										} `json:"accessibilityData"`
+									} `json:"contextMenuAccessibility"`
+									ContextMenuEndpoint struct {
+										CommandMetadata struct {
+											WebCommandMetadata struct {
+												IgnoreNavigation bool `json:"ignoreNavigation"`
+											} `json:"webCommandMetadata"`
+										} `json:"commandMetadata"`
+										LiveChatItemContextMenuEndpoint struct {
+											Params string `json:"params"`
+										} `json:"liveChatItemContextMenuEndpoint"`
+									} `json:"contextMenuEndpoint"`
+									ID      string `json:"id"`
+									Message struct {
+										Runs []struct {
+											Emoji struct {
+												EmojiID string `json:"emojiId"`
+												Image   struct {
+													Accessibility struct {
+														AccessibilityData struct {
+															Label string `json:"label"`
+														} `json:"accessibilityData"`
+													} `json:"accessibility"`
+													Thumbnails []struct {
+														Height int64  `json:"height"`
+														URL    string `json:"url"`
+														Width  int64  `json:"width"`
+													} `json:"thumbnails"`
+												} `json:"image"`
+												IsCustomEmoji bool     `json:"isCustomEmoji"`
+												SearchTerms   []string `json:"searchTerms"`
+												Shortcuts     []string `json:"shortcuts"`
+											} `json:"emoji"`
+											Text string `json:"text"`
+										} `json:"runs"`
+									} `json:"message"`
+									TimestampText struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"timestampText"`
+									TimestampUsec string `json:"timestampUsec"`
+								} `json:"liveChatTextMessageRenderer"`
+							} `json:"item"`
+						} `json:"addChatItemAction"`
+						AddLiveChatTickerItemAction struct {
+							DurationSec string `json:"durationSec"`
+							Item        struct {
+								LiveChatTickerPaidMessageItemRenderer struct {
+									Amount struct {
+										SimpleText string `json:"simpleText"`
+									} `json:"amount"`
+									AmountTextColor         int64  `json:"amountTextColor"`
+									AuthorExternalChannelID string `json:"authorExternalChannelId"`
+									AuthorPhoto             struct {
+										Accessibility struct {
+											AccessibilityData struct {
+												Label string `json:"label"`
+											} `json:"accessibilityData"`
+										} `json:"accessibility"`
+										Thumbnails []struct {
+											Height int64  `json:"height"`
+											URL    string `json:"url"`
+											Width  int64  `json:"width"`
+										} `json:"thumbnails"`
+									} `json:"authorPhoto"`
+									DurationSec        int64  `json:"durationSec"`
+									EndBackgroundColor int64  `json:"endBackgroundColor"`
+									FullDurationSec    int64  `json:"fullDurationSec"`
+									ID                 string `json:"id"`
+									ShowItemEndpoint   struct {
+										CommandMetadata struct {
+											WebCommandMetadata struct {
+												IgnoreNavigation bool `json:"ignoreNavigation"`
+											} `json:"webCommandMetadata"`
+										} `json:"commandMetadata"`
+										ShowLiveChatItemEndpoint struct {
+											Renderer struct {
+												LiveChatPaidMessageRenderer struct {
+													AuthorExternalChannelID string `json:"authorExternalChannelId"`
+													AuthorName              struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"authorName"`
+													AuthorNameTextColor int64 `json:"authorNameTextColor"`
+													AuthorPhoto         struct {
+														Thumbnails []struct {
+															Height int64  `json:"height"`
+															URL    string `json:"url"`
+															Width  int64  `json:"width"`
+														} `json:"thumbnails"`
+													} `json:"authorPhoto"`
+													BodyBackgroundColor      int64 `json:"bodyBackgroundColor"`
+													BodyTextColor            int64 `json:"bodyTextColor"`
+													ContextMenuAccessibility struct {
+														AccessibilityData struct {
+															Label string `json:"label"`
+														} `json:"accessibilityData"`
+													} `json:"contextMenuAccessibility"`
+													ContextMenuEndpoint struct {
+														CommandMetadata struct {
+															WebCommandMetadata struct {
+																IgnoreNavigation bool `json:"ignoreNavigation"`
+															} `json:"webCommandMetadata"`
+														} `json:"commandMetadata"`
+														LiveChatItemContextMenuEndpoint struct {
+															Params string `json:"params"`
+														} `json:"liveChatItemContextMenuEndpoint"`
+													} `json:"contextMenuEndpoint"`
+													HeaderBackgroundColor int64  `json:"headerBackgroundColor"`
+													HeaderTextColor       int64  `json:"headerTextColor"`
+													ID                    string `json:"id"`
+													Message               struct {
+														Runs []struct {
+															Text string `json:"text"`
+														} `json:"runs"`
+													} `json:"message"`
+													PurchaseAmountText struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"purchaseAmountText"`
+													TimestampColor int64 `json:"timestampColor"`
+													TimestampText  struct {
+														SimpleText string `json:"simpleText"`
+													} `json:"timestampText"`
+													TimestampUsec string `json:"timestampUsec"`
+												} `json:"liveChatPaidMessageRenderer"`
+											} `json:"renderer"`
+										} `json:"showLiveChatItemEndpoint"`
+									} `json:"showItemEndpoint"`
+									StartBackgroundColor int64 `json:"startBackgroundColor"`
+								} `json:"liveChatTickerPaidMessageItemRenderer"`
+							} `json:"item"`
+						} `json:"addLiveChatTickerItemAction"`
+					} `json:"actions"`
+					VideoOffsetTimeMsec string `json:"videoOffsetTimeMsec"`
+				} `json:"replayChatItemAction"`
+			} `json:"actions"`
+			Continuations []struct {
+				LiveChatReplayContinuationData struct {
+					Continuation             string `json:"continuation"`
+					TimeUntilLastMessageMsec int64  `json:"timeUntilLastMessageMsec"`
+				} `json:"liveChatReplayContinuationData"`
+				PlayerSeekContinuationData struct {
+					Continuation string `json:"continuation"`
+				} `json:"playerSeekContinuationData"`
+			} `json:"continuations"`
+		} `json:"liveChatContinuation"`
+	} `json:"continuationContents"`
+	ResponseContext struct {
+		MainAppWebResponseContext struct {
+			DatasyncID string `json:"datasyncId"`
+			LoggedOut  bool   `json:"loggedOut"`
+		} `json:"mainAppWebResponseContext"`
+		ServiceTrackingParams []struct {
+			Params []struct {
+				Key   string `json:"key"`
+				Value string `json:"value"`
+			} `json:"params"`
+			Service string `json:"service"`
+		} `json:"serviceTrackingParams"`
+		WebResponseContextExtensionData struct {
+			HasDecorated bool `json:"hasDecorated"`
+		} `json:"webResponseContextExtensionData"`
+	} `json:"responseContext"`
+}
+
