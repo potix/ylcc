@@ -34,7 +34,7 @@ message Status {
 }
 
 message GetVideoRequest {
-	 string videoId = 1;
+	string videoId = 1;
 }
 
 message GetVideoResponse {
@@ -62,12 +62,12 @@ message PollActiveLiveChatResponse {
 
 message GetCachedActiveLiveChatRequest {
 	string videoId = 1;
-	string pageToken = 2;
+	int64 offset = 2;
+	int64 count = 3;
 }
 
 message GetCachedActiveLiveChatResponse {
 	Status status = 1;
-	string nextPageToken = 2;
 	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
 }
 
@@ -83,12 +83,12 @@ message StartCollectionArchiveLiveChatResponse {
 
 message GetArchiveLiveChatRequest {
 	string videoId = 1;
-	string pageToken = 2;
+	int64 offset = 2;
+	int64 count = 3;
 }
 
 message GetArchiveLiveChatResponse {
 	Status status = 1;
-	string nextPageToken = 2;
 	repeated ArchiveLiveChatMessage ArchiveLiveChatMessages = 3;
 }
 
@@ -128,22 +128,22 @@ message ActiveLiveChatMessage {
 	bool isSuperChat = 15;
 	string amountDisplayString = 16;
 	string currency = 17;
+	string pageToken = 18;
 }
 
 message ArchiveLiveChatMessage {
         string messageId = 1;
         string channelId = 2;
         string videoId = 3;
-        string timestampUsec = 4;
-        string clientId  = 5;
-        string authorName = 6;
+        string clientId  = 4;
+        string authorName = 5;
+	string authorExternalChannelId = 6;
         string messageText = 7;
         string purchaseAmountText = 8;
-        string videoOffsetTimeMsec = 9;
-        string timestamp = 10;
+	bool isPaid = 9;
+        string timestampUsec = 10;
+        string timestampText = 11;
+        string videoOffsetTimeMsec = 12;
+	string continuation = 13;
 }
-
-
-
-
 

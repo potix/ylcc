@@ -218,16 +218,16 @@ func main() {
 	client := pb.NewYlccClient(conn)
 	switch (mode) {
 	case "active":
+		getVideo(client, videoId)
 		startCollectionActiveLiveChat(client, videoId)
 		pollActiveLiveChat(client, videoId)
-		getVideo(client, videoId)
 	case "activeCache":
-		getCachedActiveLiveChatLoop(client, videoId)
 		getVideo(client, videoId)
+		getCachedActiveLiveChatLoop(client, videoId)
 	case "archive":
+		getVideo(client, videoId)
 		startCollectionArchiveLiveChat(client, videoId)
 		getArchiveLiveChatLoop(client, videoId)
-		getVideo(client, videoId)
 	}
 }
 
