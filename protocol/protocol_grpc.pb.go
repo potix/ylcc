@@ -33,6 +33,8 @@ type YlccClient interface {
 	// アーカイブのライブチャットのメッセージを返す
 	// 収集中はエラーを返す
 	GetArchiveLiveChat(ctx context.Context, in *GetArchiveLiveChatRequest, opts ...grpc.CallOption) (*GetArchiveLiveChatResponse, error)
+	// 配信中のライブチャットのワードクラウドを生成して返す
+	GetWordCloud(ctx context.Context, in *GetWordCloudRequest, opts ...grpc.CallOption) (*GetWordCloudResponse, error)
 }
 
 type ylccClient struct {
@@ -120,6 +122,15 @@ func (c *ylccClient) GetArchiveLiveChat(ctx context.Context, in *GetArchiveLiveC
 	return out, nil
 }
 
+func (c *ylccClient) GetWordCloud(ctx context.Context, in *GetWordCloudRequest, opts ...grpc.CallOption) (*GetWordCloudResponse, error) {
+	out := new(GetWordCloudResponse)
+	err := c.cc.Invoke(ctx, "/ylcc/GetWordCloud", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // YlccServer is the server API for Ylcc service.
 // All implementations must embed UnimplementedYlccServer
 // for forward compatibility
@@ -139,6 +150,8 @@ type YlccServer interface {
 	// アーカイブのライブチャットのメッセージを返す
 	// 収集中はエラーを返す
 	GetArchiveLiveChat(context.Context, *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error)
+	// 配信中のライブチャットのワードクラウドを生成して返す
+	GetWordCloud(context.Context, *GetWordCloudRequest) (*GetWordCloudResponse, error)
 	mustEmbedUnimplementedYlccServer()
 }
 
@@ -163,6 +176,9 @@ func (UnimplementedYlccServer) StartCollectionArchiveLiveChat(context.Context, *
 }
 func (UnimplementedYlccServer) GetArchiveLiveChat(context.Context, *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetArchiveLiveChat not implemented")
+}
+func (UnimplementedYlccServer) GetWordCloud(context.Context, *GetWordCloudRequest) (*GetWordCloudResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetWordCloud not implemented")
 }
 func (UnimplementedYlccServer) mustEmbedUnimplementedYlccServer() {}
 
@@ -288,6 +304,24 @@ func _Ylcc_GetArchiveLiveChat_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ylcc_GetWordCloud_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetWordCloudRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(YlccServer).GetWordCloud(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ylcc/GetWordCloud",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(YlccServer).GetWordCloud(ctx, req.(*GetWordCloudRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Ylcc_ServiceDesc is the grpc.ServiceDesc for Ylcc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -314,6 +348,10 @@ var Ylcc_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetArchiveLiveChat",
 			Handler:    _Ylcc_GetArchiveLiveChat_Handler,
+		},
+		{
+			MethodName: "GetWordCloud",
+			Handler:    _Ylcc_GetWordCloud_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

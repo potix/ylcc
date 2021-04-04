@@ -18,6 +18,9 @@ service ylcc {
 	// アーカイブのライブチャットのメッセージを返す
 	// 収集中はエラーを返す
 	rpc GetArchiveLiveChat (GetArchiveLiveChatRequest) returns (GetArchiveLiveChatResponse) {}
+
+	// 配信中のライブチャットのワードクラウドを生成して返す
+	rpc GetWordCloud (GetWordCloudRequest) returns (GetWordCloudResponse) {}
 }
 
 enum Code {
@@ -57,7 +60,7 @@ message PollActiveLiveChatRequest {
 
 message PollActiveLiveChatResponse {
 	Status status = 1;
-	repeated ActiveLiveChatMessage activeLiveChatMessages = 3;
+	repeated ActiveLiveChatMessage activeLiveChatMessages = 2;
 }
 
 message GetCachedActiveLiveChatRequest {
@@ -147,3 +150,12 @@ message ArchiveLiveChatMessage {
 	string continuation = 13;
 }
 
+message GetWordCloudRequest {
+	string videoId = 1;
+}
+
+message GetWordCloudResponse {
+	Status status = 1;
+	string mimeType = 2;
+	bytes  data = 3;
+}
