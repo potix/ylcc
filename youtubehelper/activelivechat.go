@@ -67,7 +67,7 @@ func (a *ActiveLiveChatCollector) GetActiveLiveChat(params *ActiveLiveChatParams
 	liveChatMessagesListCall.MaxResults(max)
 	liveChatMessageListResponse, err := liveChatMessagesListCall.Do()
 	if err != nil {
-		return nil, fmt.Errorf("can not get live chat messages (videoId = %v, activeLiveChatId = %v): %w", params.activeLiveChatId)
+		return nil, fmt.Errorf("can not get live chat messages (videoId = %v, activeLiveChatId = %v): %w", params.videoId, params.activeLiveChatId, err)
 	}
 	return liveChatMessageListResponse, nil
 }
