@@ -6,7 +6,7 @@ import (
         "log/syslog"
         "flag"
         "encoding/json"
-        "github.com/potix/ylcc/signal"
+        "github.com/potix/ylcc/signalutil"
         "github.com/potix/ylcc/configurator"
         "github.com/potix/ylcc/collector"
         "github.com/potix/ylcc/server"
@@ -104,6 +104,6 @@ func main() {
 	if err != nil {
                 log.Fatalf("can not start server: %v", err)
 	}
-        signal.SignalWait(conf.Verbose)
+        signalutil.SignalWait(conf.Verbose)
         newServer.Stop()
 }
