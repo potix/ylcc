@@ -2,13 +2,11 @@ package main
 
 
 import (
-        "os"
         "log"
         "log/syslog"
         "flag"
-        "syscall"
-        "os/signal"
         "encoding/json"
+        "github.com/potix/ylcc/signal"
         "github.com/potix/ylcc/configurator"
         "github.com/potix/ylcc/collector"
         "github.com/potix/ylcc/server"
@@ -50,27 +48,6 @@ func verboseLoadedConfig(config *ylccConfig) {
                 return
         }
         log.Printf("loaded config: %v", string(j))
-}
-
-func signalWait() {
-        sigChan := make(chan os.Signal, 1)
-        signal.Notify(sigChan,
-                syscall.SIGINT,
-                syscall.SIGQUIT,
-                syscall.SIGTERM)
-        for {
-                sig := <-sigChan
-                switch sig {
-                case syscall.SIGINT:
-                        fallthrough
-                case syscall.SIGQUIT:
-                        fallthrough
-                case syscall.SIGTERM:
-                        return
-                default:
-                        log.Printf("unexpected signal (sig = %v)", sig)
-                }
-        }
 }
 
 func main() {
@@ -127,6 +104,6 @@ func main() {
 	if err != nil {
                 log.Fatalf("can not start server: %v", err)
 	}
-        signalWait()
+        signal.SignalWait(conf.Verbose)
         newServer.Stop()
 }
