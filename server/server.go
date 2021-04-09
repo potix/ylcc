@@ -32,8 +32,8 @@ func Verbose(verbose bool) Option {
 
 func TLS(tlsCertPath string, tlsKeyPath string) Option {
 	return func(opts *options) {
-		options.tlsCertPath = tlsCertPath
-		options.tlsKeyPath = tlsKeyPath
+		opts.tlsCertPath = tlsCertPath
+		opts.tlsKeyPath = tlsKeyPath
 	}
 }
 
@@ -78,9 +78,9 @@ func NewServer(addrPort string,  handler Handler, opts ...Option) (*Server, erro
 	}
 	grpcServer := grpc.NewServer()
 	if baseOpts.tlsCertPath != "" && baseOpts.tlsKeyPath != "" {
-		serverCred, err := credentials.NewServerTLSFromFile(opts.tlsCertPath, optstlsKeyPath)
+		serverCred, err := credentials.NewServerTLSFromFile(baseOpts.tlsCertPath, baseOpts.tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", opts.tlsCertPath, optstlsKeyPath, err)
+			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", baseOpts.tlsCertPath, baseOpts.tlsKeyPath, err)
 		}
 		grpcServer = grpc.NewServer(grpc.Creds(serverCred))
 	}
