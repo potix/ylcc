@@ -15,11 +15,17 @@ type options struct {
         verbose     bool
 }
 
+func defaultOptions() (*options) {
+        return &options {
+                verbose: false,
+        }
+}
+
 type Option func(*options)
 
 func Verbose(verbose bool) Option {
         return func(opts *options) {
-                options.verbose = verbose
+                opts.verbose = verbose
         }
 }
 
@@ -167,15 +173,13 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*GetWordCloud
 	}, nil
 }
 
-func NewProcessor(collector *collector.Collector, mecabrc string, font string, ...Options) (*Processor) {
-	opts := &options{
-                verbose: false,
-        }
-        for _, opt := range options {
-                opt(opts)
+func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Options) (*Processor) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
         }
 	return &Processor{
-		verbose: opt.verbose,
+		verbose: baseOpt.verbose,
 		collector: collector,
 		mecabrc: mecabrc,
 		font: font,

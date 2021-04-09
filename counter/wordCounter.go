@@ -1,22 +1,27 @@
 package counter
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 	"github.com/shogo82148/go-mecab"
 )
 
 type options struct {
-        verbose     bool
+	verbose bool
+}
+
+func defaultOptions() (*options) {
+	return &options {
+		verbose: false,
+	}
 }
 
 type Option func(*options)
 
 func Verbose(verbose bool) Option {
-        return func(opts *options) {
-                options.verbose = verbose
-        }
+	return func(opts *options) {
+		opts.verbose = verbose
+	}
 }
 
 type wordCounter struct {
@@ -24,7 +29,7 @@ type wordCounter struct {
 	result map[string]int
 }
 
-func (w *wordCounter)isAlphabets(s string) bool {
+func (w *wordCounter) isAlphabets(s string) bool {
 	for _, r := range s {
 		if !((r  >= 'a' && r <= 'z') || (r >= 'A' && r  <= 'Z') || r == '\'' || r == '.' || r == ',' || r == '?' || r == '!' || r == ' ') {
 			return false
@@ -33,7 +38,7 @@ func (w *wordCounter)isAlphabets(s string) bool {
 	return true
 }
 
-func (w *wordCounter addWords(words string[]) {
+func (w *wordCounter) addWords(words []string) {
 	for _, word := range words {
 		_, ok := w.result[word]
 		if !ok {
@@ -104,15 +109,13 @@ func (w *wordCounter) Result() (map[string]int) {
 	return w.result
 }
 
-func NewWordCounter(mecabrc string, options ...Option) {
-	opts := &options{
-                verbose: false,
+func NewWordCounter(mecabrc string, opts ...Option) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
         }
-        for _, opt := range options {
-                opt(opts)
-        }
-	return ;= &wordCounter {
-		verbose: opts.verbose,
+	return &wordCounter {
+		verbose: baseOpts.verbose,
 		result: make(map[string]int),
 	}
 }
