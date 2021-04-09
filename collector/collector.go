@@ -667,7 +667,7 @@ func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Colle
 	for _, opt := range opts {
 		opt(baseOpts)
 	}
-	if len(apiKeys) > 0 {
+	if len(apiKeys) < 1 {
 		return nil, fmt.Errorf("no api key")
 	}
 	verboseOpt := Verbose(baseOpts.verbose)
