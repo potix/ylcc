@@ -652,7 +652,7 @@ LAST:
 	close(c.publisherFinishResponseCh)
 }
 
-func (c *Collector) start() (error) {
+func (c *Collector) Start() (error) {
 	if err := c.dbOperator.Open(); err != nil {
 		return fmt.Errorf("can not start Collector: %w", err)
 	}
@@ -660,7 +660,7 @@ func (c *Collector) start() (error) {
 	return nil
 }
 
-func (c *Collector) stop() {
+func (c *Collector) Stop() {
 	close(c.publisherFinishRequestCh)
         <-c.publisherFinishResponseCh
 }

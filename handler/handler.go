@@ -29,19 +29,20 @@ func Verbose(verbose bool) Option {
 
 type Handler struct {
 	verbose   bool
-	collector *Collector
+	processor *processor.Processor
+	collector *collector.Collector
 	pb.UnimplementedYlccServer
 }
 
 func (h *Handler) Start() (error) {
-	if err := h.collector.start(); err != nil {
+	if err := h.collector.Start(); err != nil {
 		return fmt.Errorf("can not start collector %w", err)
 	}
 	return nil
 }
 
 func (h *Handler) Stop() {
-	h.collector.stop()
+	h.collector.Stop()
 }
 
 func (h *Handler) Register(grpcServer *grpc.Server) {
@@ -82,15 +83,15 @@ func (h *Handler) GetArchiveLiveChat(ctx context.Context, request *pb.GetArchive
 	return h.collector.GetArchiveLiveChat(request)
 }
 
-func (h *Handler) GetWordCloud(ctx context.Context, request *GetWordCloudRequest) (*GetWordCloudResponse, error) {
+func (h *Handler) GetWordCloud(ctx context.Context, request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
 	return h.processor.GetWordCloud(request)
 }
 
-func NewHandler(processor *Processor, collector *Collector, opts ...Option) (*Handler) {
+func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) (*Handler) {
 	baseOpts := &options{
 		verbose: false,
 	}
-	for _, opt := range options {
+	for _, opt := range opts {
 		opt(baseOpts)
 	}
 	return &Handler {
