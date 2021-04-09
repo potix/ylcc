@@ -117,10 +117,10 @@ func (p *Processor) unregisterVideoWordCloud(videoId string) {
 }
 
 func (p *Processor)storeWordCloudMessages(videoId string) {
-        subscribeActiveLiveChatParams := p.collector.subscribeActiveLiveChat(videoId)
-        defer p.collector.unsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
+        subscribeActiveLiveChatParams := p.collector.SubscribeActiveLiveChat(videoId)
+        defer p.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
         for {
-                response, ok := <-subscribeActiveLiveChatParams.subscriberCh
+                response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh()
                 if !ok {
 			p.deleteWordCloudMessages(videoId)
                         return
@@ -144,14 +144,14 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	verboseOpt := counter.Verbose(p.verbose)
 	wordCounter := counter.NewWordCounter(p.mecabrc, verboseOpt)
 	for _, message := range messages {
-		p.wordCounter.Count(message)
+		wordCounter.Count(message)
 	}
-	result := p.wordCounter.Result()
+	result := wordCounter.Result()
 	wordCound := wordclouds.NewWordcloud(
 		result,
 		wordclouds.FontFile(p.font),
-		wordclouds.Height(request.Height),
-		wordclouds.Width(request.Width),
+		wordclouds.Height(int(request.Height)),
+		wordclouds.Width(int(request.Width)),
 	)
 	img := wordCound.Draw()
 	buf := new(bytes.Buffer)
@@ -187,6 +187,6 @@ func NewProcessor(collector *collector.Collector, mecabrc string, font string, o
 		videoWordCloudMutex: new(sync.Mutex),
 		videoWordCloud: make(map[string]bool),
 		videoWordCloudMessagesMutex: new(sync.Mutex),
-		videoWordCloudMessages: new(map[string][]*pb.ActiveLiveChatMessage),
+		videoWordCloudMessages: make(map[string][]*pb.ActiveLiveChatMessage),
 	}
 }
