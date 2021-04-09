@@ -15,6 +15,18 @@ const (
         bulkMessageMax int64 = 2000
 )
 
+type options struct {
+        verbose     bool
+}
+
+type Option func(*options)
+
+func Verbose(verbose bool) Option {
+        return func(opts *options) {
+                options.verbose = verbose
+        }
+}
+
 type Collector struct {
 	verbose                               bool
 	dbOperator                            *DatabaseOperator
@@ -204,7 +216,7 @@ func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtu
 		ok := c.activeLiveChatCollector.Next(params, liveChatMessageListResponse)
 		if !ok {
 			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
-				err: errors.New("EOF"),
+				err: io.EOF,
 				videoId: video.Id,
 				activeLiveChatMessages: nil,
 			}
@@ -568,7 +580,7 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 	}, nil
 }
 
-func (c *Collector) SubscribeActiveLiveChat(request *pb.PollActiveLiveChatRequest) (*subscribeActiveLiveChatParams) {
+func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiveChatParams) {
         subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams {
                 videoId: request.VideoId,
                 subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
@@ -665,8 +677,14 @@ func (c *Collector) stop() {
         <-c.publisherFinishResponseCh
 }
 
-func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collector, error) {
-	if len(apiKeys) != 1 {
+func NewCollector(apiKeys []string, databasePath string, options ...Option) (*Collector, error) {
+	opts := &pptions{
+                verbose: false,
+        }
+        for _, opt := range options {
+                opt(opts)
+        }
+	if len(apiKeys) > 0 {
 		return nil, fmt.Errorf("no api key")
 	}
 	databaseOperator, err := NewDatabaseOperator(verbose, databasePath)
@@ -674,7 +692,7 @@ func NewCollector(verbose bool, apiKeys []string, databasePath string) (*Collect
 		return nil, fmt.Errorf("can not create database operator: %w", err)
 	}
 	return &Collector {
-		verbose: verbose,
+		verbose: opts.verbose,
 		dbOperator: databaseOperator,
 		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
 		requestedVideoForActiveLiveChat: make(map[string]bool),

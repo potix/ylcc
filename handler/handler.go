@@ -9,6 +9,18 @@ import (
 	pb "github.com/potix/ylcc/protocol"
 )
 
+type options struct {
+	verbose     bool
+}
+
+type Option func(*options)
+
+func Verbose(verbose bool) Option {
+	return func(opts *options) {
+		options.verbose = verbose
+	}
+}
+
 type Handler struct {
 	verbose   bool
 	collector *Collector
@@ -39,7 +51,7 @@ func (h *Handler) StartCollectionActiveLiveChat(ctx context.Context, request *pb
 }
 
 func (h *Handler) PollActiveLiveChat(request *pb.PollActiveLiveChatRequest, server pb.Ylcc_PollActiveLiveChatServer) (error) {
-	subscribeActiveLiveChatParams := h.collector.SubscribeActiveLiveChat(request)
+	subscribeActiveLiveChatParams := h.collector.SubscribeActiveLiveChat(request.VideoId)
 	defer h.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
 	for {
 		response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh()
@@ -68,9 +80,15 @@ func (h *Handler) GetWordCloud(ctx context.Context, request *GetWordCloudRequest
 	return h.processor.GetWordCloud(request)
 }
 
-func NewHandler(verbose bool, processor *Processor, collector *Collector) (*Handler) {
+func NewHandler(processor *Processor, collector *Collector, options ...Option) (*Handler) {
+	opts := &options{
+		verbose: false,
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
 	return &Handler {
-		verbose: verbose,
+		verbose: opts.verbose,
 		processor: processor,
 		collector: collector,
 	}

@@ -80,30 +80,29 @@ func main() {
 	if len(apiKeys) != 1 {
                 log.Fatalf("no api key")
         }
+	verboseOpt := collector.Verbose(conf.Verbose)
 	newCollector, err := collector.NewCollector(
-		conf.Verbose,
 		apiKeys,
 		conf.Collector.DatabasePath,
+		verboseOpt,
 	)
 	if err != nil {
 		log.Fatalf("can not create controller: %v", err)
 	}
-	newProcessor := processor.NewProcessor(
-		conf.Verbose,
+	verboseOpt = server.Verbose(conf.Verbose)
+	newProcessor := collector.NewProcessor(
 		newCollector,
+		verboseOpt,
 	)
-	newHandler := collector.NewHandler(
-		conf.Verbose,
+	verboseOpt := handler.Verbose(conf.Verbose)
+	newHandler := handler.NewHandler(
 		newProcessor,
 		newCollector,
+		verboseOpt,
 	)
-        newServer, err := server.NewServer(
-		conf.Verbose,
-		conf.Server.AddrPort,
-		conf.Server.TlsCertPath,
-		conf.Server.TlsKeyPath,
-		newHandler,
-	)
+	verboseOpt = server.Verbose(conf.Verbose)
+	tlsOpt := server.TLS(conf.Server.TlsCertPath, conf.Server.TlsKeyPath)
+        newServer, err := server.NewServer(conf.Server.AddrPort, newHandler, verboseOpt, tlsOpt)
 	if err != nil {
 		log.Fatalf("can not create server: %v", err)
 	}
