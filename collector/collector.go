@@ -4,7 +4,7 @@ import (
         "fmt"
         "log"
         "sync"
-        "errors"
+        "io"
         "google.golang.org/api/youtube/v3"
 	"github.com/potix/ylcc/youtubehelper"
 	pb "github.com/potix/ylcc/protocol"
@@ -14,18 +14,6 @@ import (
 const (
         bulkMessageMax int64 = 2000
 )
-
-type options struct {
-        verbose     bool
-}
-
-type Option func(*options)
-
-func Verbose(verbose bool) Option {
-        return func(opts *options) {
-                options.verbose = verbose
-        }
-}
 
 type Collector struct {
 	verbose                               bool
@@ -582,7 +570,7 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 
 func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiveChatParams) {
         subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams {
-                videoId: request.VideoId,
+                videoId: videoId,
                 subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
         }
 	c.subscribeActiveLiveChatCh <-subscribeActiveLiveChatParams
@@ -677,22 +665,22 @@ func (c *Collector) stop() {
         <-c.publisherFinishResponseCh
 }
 
-func NewCollector(apiKeys []string, databasePath string, options ...Option) (*Collector, error) {
-	opts := &pptions{
-                verbose: false,
-        }
-        for _, opt := range options {
-                opt(opts)
+func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Collector, error) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
         }
 	if len(apiKeys) > 0 {
 		return nil, fmt.Errorf("no api key")
 	}
-	databaseOperator, err := NewDatabaseOperator(verbose, databasePath)
+	verboseOpt := Verbose(baseOpts.verbose)
+	databaseOperator, err := NewDatabaseOperator(databasePath, verboseOpt)
 	if err != nil {
 		return nil, fmt.Errorf("can not create database operator: %w", err)
 	}
+	ythVerboseOpt := youtubehelper.Verbose(baseOpts.verbose)
 	return &Collector {
-		verbose: opts.verbose,
+		verbose: baseOpts.verbose,
 		dbOperator: databaseOperator,
 		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
 		requestedVideoForActiveLiveChat: make(map[string]bool),
@@ -703,8 +691,8 @@ func NewCollector(apiKeys []string, databasePath string, options ...Option) (*Co
 		unsubscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
 		publisherFinishRequestCh: make(chan int),
 		publisherFinishResponseCh: make(chan int),
-		activeLiveChatCollector: youtubehelper.NewActiveLiveChatCollector(verbose, apiKeys[0]),
-		archiveLiveChatCollector: youtubehelper.NewArchiveLiveChatCollector(verbose),
+		activeLiveChatCollector: youtubehelper.NewActiveLiveChatCollector(apiKeys[0], ythVerboseOpt),
+		archiveLiveChatCollector: youtubehelper.NewArchiveLiveChatCollector(ythVerboseOpt),
 
 	}, nil
 }

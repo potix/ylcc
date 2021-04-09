@@ -13,11 +13,17 @@ type options struct {
 	verbose     bool
 }
 
+func defaultOptions() (*options) {
+	return &options {
+		verbose: false,
+	}
+}
+
 type Option func(*options)
 
 func Verbose(verbose bool) Option {
 	return func(opts *options) {
-		options.verbose = verbose
+		opts.verbose = verbose
 	}
 }
 
@@ -80,15 +86,15 @@ func (h *Handler) GetWordCloud(ctx context.Context, request *GetWordCloudRequest
 	return h.processor.GetWordCloud(request)
 }
 
-func NewHandler(processor *Processor, collector *Collector, options ...Option) (*Handler) {
-	opts := &options{
+func NewHandler(processor *Processor, collector *Collector, opts ...Option) (*Handler) {
+	baseOpts := &options{
 		verbose: false,
 	}
 	for _, opt := range options {
-		opt(opts)
+		opt(baseOpts)
 	}
 	return &Handler {
-		verbose: opts.verbose,
+		verbose: baseOpts.verbose,
 		processor: processor,
 		collector: collector,
 	}

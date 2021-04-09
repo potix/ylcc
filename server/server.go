@@ -14,11 +14,19 @@ type options struct {
 	tlsKeyPath  string
 }
 
+func defaultOptions() (*options) {
+        return &options {
+		verbose: false,
+		tlsCertPath: "",
+		tlsKeyPath: "",
+	}
+}
+
 type Option func(*options)
 
 func Verbose(verbose bool) Option {
 	return func(opts *options) {
-		options.verbose = verbose
+		opts.verbose = verbose
 	}
 }
 
@@ -59,21 +67,17 @@ func (s *Server) Stop() {
 	s.handler.Stop()
 }
 
-func NewServer(addrPort string,  handler Handler, options ...Option) (*Server, error) {
-	opts := &pptions{
-		verbose: false,
-		tlsCertPath: "",
-		tlsKeyPath: "",
-	}
-	for _, opt := range options {
-		opt(opts)
+func NewServer(addrPort string,  handler Handler, opts ...Option) (*Server, error) {
+	baseOpts := defaultOptions()
+	for _, opt := range opts {
+		opt(baseOpts)
 	}
 	listen, err := net.Listen("tcp", addrPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen (addrPort = %v): %w", addrPort, err)
 	}
 	grpcServer := grpc.NewServer()
-	if opts.tlsCertPath != "" && opts.tlsKeyPath != "" {
+	if baseOpts.tlsCertPath != "" && baseOpts.tlsKeyPath != "" {
 		serverCred, err := credentials.NewServerTLSFromFile(opts.tlsCertPath, optstlsKeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", opts.tlsCertPath, optstlsKeyPath, err)
@@ -82,7 +86,7 @@ func NewServer(addrPort string,  handler Handler, options ...Option) (*Server, e
 	}
 	handler.Register(grpcServer)
 	newServer := &Server{
-		verbose: opts.verbose,
+		verbose: baseOpts.verbose,
 		listen: listen,
 		grpcServer: grpcServer,
 		handler: handler,

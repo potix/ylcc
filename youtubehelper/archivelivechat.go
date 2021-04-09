@@ -158,7 +158,11 @@ func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetL
 	}
 }
 
-func NewArchiveLiveChatCollector(verbose bool) (*ArchiveLiveChatCollector) {
+func NewArchiveLiveChatCollector(opts ...Option) (*ArchiveLiveChatCollector) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
+        }
 	res := make(map[string]*regexp.Regexp)
 	res["continuation"] = regexp.MustCompile(`"liveChatRenderer".+?"continuations".+?"reloadContinuationData".+?"continuation"[ ]*:[ ]*"([^"]+)"`)
 	res["visitorData"] = regexp.MustCompile(`"visitorData"[ ]*:[ ]*"([^"]+)"`)
@@ -178,7 +182,7 @@ func NewArchiveLiveChatCollector(verbose bool) (*ArchiveLiveChatCollector) {
 	res["platform"] = regexp.MustCompile(`"platform"[ ]*:[ ]*"([^"]+)"`)
 	res["clientFormFactor"] = regexp.MustCompile(`"clientFormFactor"[ ]*:[ ]*"([^"]+)"`)
 	return &ArchiveLiveChatCollector{
-		verbose: verbose,
+		verbose: baseOpts.verbose,
 		res: res,
 	}
 }

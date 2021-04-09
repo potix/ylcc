@@ -81,9 +81,13 @@ func (a *ActiveLiveChatCollector) Next(params *ActiveLiveChatParams, liveChatMes
 	return true
 }
 
-func NewActiveLiveChatCollector(verbose bool, apiKey string) (*ActiveLiveChatCollector) {
+func NewActiveLiveChatCollector(apiKey string, opts ...Option) (*ActiveLiveChatCollector) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
+        }
 	return &ActiveLiveChatCollector {
-		verbose: verbose,
+		verbose: baseOpts.verbose,
 		apiKey: apiKey,
 	}
 }

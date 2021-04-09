@@ -506,7 +506,11 @@ func (d *DatabaseOperator) Close()  {
         d.db.Close()
 }
 
-func NewDatabaseOperator(verbose bool, databasePath string) (*DatabaseOperator, error) {
+func NewDatabaseOperator(databasePath string, opts ...Option) (*DatabaseOperator, error) {
+	baseOpts := defaultOptions()
+        for _, opt := range opts {
+                opt(baseOpts)
+        }
         if databasePath == "" {
                 return nil, fmt.Errorf("no database path")
         }
@@ -519,7 +523,7 @@ func NewDatabaseOperator(verbose bool, databasePath string) (*DatabaseOperator, 
                 }
         }
         return &DatabaseOperator{
-		verbose: verbose,
+		verbose: baseOpts.verbose,
                 databasePath: databasePath,
                 db: nil,
         }, nil
