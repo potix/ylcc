@@ -1,11 +1,11 @@
 package server
 
 import (
-        "fmt"
-        "log"
-        "net"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"log"
+	"net"
 )
 
 type options struct {
@@ -14,11 +14,11 @@ type options struct {
 	tlsKeyPath  string
 }
 
-func defaultOptions() (*options) {
-        return &options {
-		verbose: false,
+func defaultOptions() *options {
+	return &options{
+		verbose:     false,
 		tlsCertPath: "",
-		tlsKeyPath: "",
+		tlsKeyPath:  "",
 	}
 }
 
@@ -38,25 +38,25 @@ func TLS(tlsCertPath string, tlsKeyPath string) Option {
 }
 
 type Server struct {
-	verbose         bool
-	listen          net.Listener
-        grpcServer      *grpc.Server
-	handler         Handler
+	verbose    bool
+	listen     net.Listener
+	grpcServer *grpc.Server
+	handler    Handler
 }
 
 type Handler interface {
-	Start() (error)
+	Start() error
 	Stop()
 	Register(*grpc.Server)
 }
 
-func (s *Server) Start() (error) {
+func (s *Server) Start() error {
 	if err := s.handler.Start(); err != nil {
 		return fmt.Errorf("can not start handler: %w", err)
 	}
-        go func() {
+	go func() {
 		if err := s.grpcServer.Serve(s.listen); err != nil {
-			log.Fatalf("can not create server credential: %w", err)
+			log.Fatalf("can not create server credential: %v", err)
 		}
 	}()
 	return nil
@@ -67,7 +67,7 @@ func (s *Server) Stop() {
 	s.handler.Stop()
 }
 
-func NewServer(addrPort string,  handler Handler, opts ...Option) (*Server, error) {
+func NewServer(addrPort string, handler Handler, opts ...Option) (*Server, error) {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
 		opt(baseOpts)
@@ -80,16 +80,16 @@ func NewServer(addrPort string,  handler Handler, opts ...Option) (*Server, erro
 	if baseOpts.tlsCertPath != "" && baseOpts.tlsKeyPath != "" {
 		serverCred, err := credentials.NewServerTLSFromFile(baseOpts.tlsCertPath, baseOpts.tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", baseOpts.tlsCertPath, baseOpts.tlsKeyPath, err)
+			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %v", baseOpts.tlsCertPath, baseOpts.tlsKeyPath, err)
 		}
 		grpcServer = grpc.NewServer(grpc.Creds(serverCred))
 	}
 	handler.Register(grpcServer)
 	newServer := &Server{
-		verbose: baseOpts.verbose,
-		listen: listen,
+		verbose:    baseOpts.verbose,
+		listen:     listen,
 		grpcServer: grpcServer,
-		handler: handler,
+		handler:    handler,
 	}
 	return newServer, nil
 }

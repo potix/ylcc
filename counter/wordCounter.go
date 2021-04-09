@@ -1,17 +1,17 @@
 package counter
 
 import (
+	"github.com/shogo82148/go-mecab"
 	"regexp"
 	"strings"
-	"github.com/shogo82148/go-mecab"
 )
 
 type options struct {
 	verbose bool
 }
 
-func defaultOptions() (*options) {
-	return &options {
+func defaultOptions() *options {
+	return &options{
 		verbose: false,
 	}
 }
@@ -32,7 +32,7 @@ type WordCounter struct {
 
 func (w *WordCounter) isAlphabets(s string) bool {
 	for _, r := range s {
-		if !((r  >= 'a' && r <= 'z') || (r >= 'A' && r  <= 'Z') || r == '\'' || r == '.' || r == ',' || r == '?' || r == '!' || r == ' ') {
+		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '\'' || r == '.' || r == ',' || r == '?' || r == '!' || r == ' ') {
 			return false
 		}
 	}
@@ -72,7 +72,7 @@ func (w *WordCounter) parseJapanease(text string) {
 	}
 	lines := strings.Split(result, "\n")
 	morphs := make([]string, 0, len(text))
-	kugiri := false;
+	kugiri := false
 	words := make([]string, 0, len(text))
 	for _, ln := range lines {
 		es := strings.Split(ln, ",")
@@ -82,7 +82,7 @@ func (w *WordCounter) parseJapanease(text string) {
 			words = append(words, word)
 			break
 		}
-		if wt[1] == "助詞" || wt[1] == "記号" && wt[1] != "特殊" {
+		if wt[1] == "助詞" || wt[1] == "記号" || wt[1] == "特殊" {
 			kugiri = true
 		} else if wt[1] != "助詞" && wt[1] != "記号" && wt[1] != "特殊" && kugiri == true {
 			word := strings.Join(morphs, "")
@@ -90,7 +90,7 @@ func (w *WordCounter) parseJapanease(text string) {
 			kugiri = false
 			morphs = make([]string, 0, len(text))
 		}
-		if wt[1] == "記号" || wt[1] != "特殊"  {
+		if wt[1] == "記号" || wt[1] == "特殊" {
 			continue
 		}
 		morphs = append(morphs, wt[0])
@@ -106,18 +106,18 @@ func (w *WordCounter) Count(text string) {
 	}
 }
 
-func (w *WordCounter) Result() (map[string]int) {
+func (w *WordCounter) Result() map[string]int {
 	return w.result
 }
 
-func NewWordCounter(mecabrc string, opts ...Option) (*WordCounter) {
+func NewWordCounter(mecabrc string, opts ...Option) *WordCounter {
 	baseOpts := defaultOptions()
-        for _, opt := range opts {
-                opt(baseOpts)
-        }
-	return &WordCounter {
+	for _, opt := range opts {
+		opt(baseOpts)
+	}
+	return &WordCounter{
 		verbose: baseOpts.verbose,
 		mecabrc: mecabrc,
-		result: make(map[string]int),
+		result:  make(map[string]int),
 	}
 }

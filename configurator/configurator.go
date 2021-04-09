@@ -1,38 +1,38 @@
 package configurator
 
 import (
-        "os"
 	"fmt"
+	"os"
 )
 
 // Configurator is configrator
 type Configurator struct {
-	loader     *loader
+	loader *loader
 }
 
 // Load is load
-func (c *Configurator) Load(config interface{}) (error) {
+func (c *Configurator) Load(config interface{}) error {
 	err := c.loader.load(config)
-        return err
+	return err
 }
 
-func validateConfigFile(configFile string) (error) {
-        f, err := os.Open(configFile)
-        if err != nil {
+func validateConfigFile(configFile string) error {
+	f, err := os.Open(configFile)
+	if err != nil {
 		return fmt.Errorf("can not open config file (%v): %w", configFile, err)
-        }
-        f.Close()
-        return nil
+	}
+	f.Close()
+	return nil
 }
 
 // NewConfigurator is create new configurator
 func NewConfigurator(configFile string) (*Configurator, error) {
 	err := validateConfigFile(configFile)
-	if (err != nil) {
+	if err != nil {
 		return nil, fmt.Errorf("invalid config file (%v): %w", configFile, err)
 	}
 	newConfigurator := &Configurator{
-             loader: newLoader(configFile),
+		loader: newLoader(configFile),
 	}
 	return newConfigurator, nil
 }

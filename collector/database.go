@@ -1,62 +1,62 @@
 package collector
 
 import (
-        "fmt"
-        "os"
-        "log"
-        "time"
-        "path/filepath"
-        "database/sql"
-        _ "github.com/mattn/go-sqlite3"
+	"database/sql"
+	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	pb "github.com/potix/ylcc/protocol"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
 )
 
 type DatabaseOperator struct {
 	verbose      bool
-        databasePath string
-        db           *sql.DB
+	databasePath string
+	db           *sql.DB
 }
 
 func (d *DatabaseOperator) GetVideoByVideoId(videoId string) (*pb.Video, bool, error) {
-        rows, err := d.db.Query(`SELECT * FROM video WHERE videoId = ?`, videoId)
-        if err != nil {
+	rows, err := d.db.Query(`SELECT * FROM video WHERE videoId = ?`, videoId)
+	if err != nil {
 		return nil, false, fmt.Errorf("can not get video by videoId: %w", err)
-        }
-        defer rows.Close()
-        for rows.Next() {
+	}
+	defer rows.Close()
+	for rows.Next() {
 		var lastUpdate int
-                video := &pb.Video{}
+		video := &pb.Video{}
 		if err := rows.Scan(
-                    &video.VideoId,
-                    &video.ChannelId,
-                    &video.CategoryId,
-                    &video.Title,
-                    &video.Description,
-                    &video.PublishedAt,
-                    &video.Duration,
-                    &video.ActiveLiveChatId,
-                    &video.ActualStartTime,
-                    &video.ActualEndTime,
-                    &video.ScheduledStartTime,
-                    &video.ScheduledEndTime,
-                    &video.PrivacyStatus,
-                    &video.UploadStatus,
-                    &video.Embeddable,
-		    &lastUpdate,
-                ); err != nil {
+			&video.VideoId,
+			&video.ChannelId,
+			&video.CategoryId,
+			&video.Title,
+			&video.Description,
+			&video.PublishedAt,
+			&video.Duration,
+			&video.ActiveLiveChatId,
+			&video.ActualStartTime,
+			&video.ActualEndTime,
+			&video.ScheduledStartTime,
+			&video.ScheduledEndTime,
+			&video.PrivacyStatus,
+			&video.UploadStatus,
+			&video.Embeddable,
+			&lastUpdate,
+		); err != nil {
 			return nil, false, fmt.Errorf("can not scan video by videoId: %w", err)
-                }
+		}
 		return video, true, nil
-        }
-        return nil, false, nil
+	}
+	return nil, false, nil
 }
 
-func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
+func (d *DatabaseOperator) UpdateVideo(video *pb.Video) error {
 	res, err := d.db.Exec(
-            `INSERT OR REPLACE INTO video (
+		`INSERT OR REPLACE INTO video (
                 videoId,
                 channelId,
-		categoryId,
+		        categoryId,
                 title,
                 description,
                 publishedAt,
@@ -69,109 +69,111 @@ func (d *DatabaseOperator) UpdateVideo(video *pb.Video) (error) {
                 privacyStatus,
                 uploadStatus,
                 embeddable,
-		lastUpdate
+		        lastUpdate
             ) VALUES (
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?, ?
             )`,
-	    video.VideoId,
-	    video.ChannelId,
-	    video.CategoryId,
-	    video.Title,
-	    video.Description,
-	    video.PublishedAt,
-	    video.Duration,
-            video.ActiveLiveChatId,
-            video.ActualStartTime,
-            video.ActualEndTime,
-            video.ScheduledStartTime,
-            video.ScheduledEndTime,
-	    video.PrivacyStatus,
-	    video.UploadStatus,
-            video.Embeddable,
-	    time.Now().Unix(),
-        )
-        if err != nil {
+		video.VideoId,
+		video.ChannelId,
+		video.CategoryId,
+		video.Title,
+		video.Description,
+		video.PublishedAt,
+		video.Duration,
+		video.ActiveLiveChatId,
+		video.ActualStartTime,
+		video.ActualEndTime,
+		video.ScheduledStartTime,
+		video.ScheduledEndTime,
+		video.PrivacyStatus,
+		video.UploadStatus,
+		video.Embeddable,
+		time.Now().Unix(),
+	)
+	if err != nil {
 		return fmt.Errorf("can not insert video: %w", err)
-        }
-        id, err := res.LastInsertId()
-        if err != nil {
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
 		return fmt.Errorf("can not get insert id of video: %w", err)
-        }
+	}
 	if d.verbose {
 		log.Printf("update video (videoId = %v, insert id = %v)", video.VideoId, id)
 	}
-        return nil
+	return nil
 }
 
-func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) (error) {
+func (d *DatabaseOperator) DeleteVideoByLastUpdate(lastUpdate int) error {
 	res, err := d.db.Exec(`DELETE FROM video WHERE lastUpdate < ?`, lastUpdate)
-        if err != nil {
+	if err != nil {
 		return fmt.Errorf("can not delete video: %w", err)
-        }
-        rowsAffected, err := res.RowsAffected()
-        if err != nil {
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
 		return fmt.Errorf("can not get rowsAffected of video: %w", err)
-        }
+	}
 	if d.verbose {
 		log.Printf("delete video (rowsAffected = %v)", rowsAffected)
 	}
-        return nil
+	return nil
 }
 
 func (d *DatabaseOperator) GetActiveLiveChatMessagesByVideoIdAndToken(videoId string, offset int64, count int64) ([]*pb.ActiveLiveChatMessage, error) {
 	activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0)
-        activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
-        if err != nil {
+	activeLiveChatMessageRows, err := d.db.Query(`SELECT * FROM activeLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
+	if err != nil {
 		return nil, fmt.Errorf("can not get activeLiveChatMessage by videoId and token: %w", err)
-        }
-        defer activeLiveChatMessageRows.Close()
-        for activeLiveChatMessageRows.Next() {
+	}
+	defer activeLiveChatMessageRows.Close()
+	for activeLiveChatMessageRows.Next() {
 		var lastUpdate int
-                activeLiveChatMessage := &pb.ActiveLiveChatMessage{}
-                if err := activeLiveChatMessageRows.Scan(
-		    &activeLiveChatMessage.MessageId,
-		    &activeLiveChatMessage.ChannelId,
-		    &activeLiveChatMessage.VideoId,
-		    &activeLiveChatMessage.ApiEtag,
-		    &activeLiveChatMessage.AuthorChannelId,
-		    &activeLiveChatMessage.AuthorChannelUrl,
-		    &activeLiveChatMessage.AuthorDisplayName,
-		    &activeLiveChatMessage.AuthorIsChatModerator,
-		    &activeLiveChatMessage.AuthorIsChatOwner,
-		    &activeLiveChatMessage.AuthorIsChatSponsor,
-		    &activeLiveChatMessage.AuthorIsVerified,
-		    &activeLiveChatMessage.LiveChatId,
-		    &activeLiveChatMessage.DisplayMessage,
-		    &activeLiveChatMessage.PublishedAt,
-		    &activeLiveChatMessage.IsSuperChat,
-		    &activeLiveChatMessage.AmountDisplayString,
-		    &activeLiveChatMessage.Currency,
-		    &activeLiveChatMessage.PageToken,
-		    &lastUpdate,
-                ); err != nil {
+		activeLiveChatMessage := &pb.ActiveLiveChatMessage{}
+		if err := activeLiveChatMessageRows.Scan(
+			&activeLiveChatMessage.MessageId,
+			&activeLiveChatMessage.ChannelId,
+			&activeLiveChatMessage.VideoId,
+			&activeLiveChatMessage.ApiEtag,
+			&activeLiveChatMessage.AuthorChannelId,
+			&activeLiveChatMessage.AuthorChannelUrl,
+			&activeLiveChatMessage.AuthorDisplayName,
+			&activeLiveChatMessage.AuthorIsChatModerator,
+			&activeLiveChatMessage.AuthorIsChatOwner,
+			&activeLiveChatMessage.AuthorIsChatSponsor,
+			&activeLiveChatMessage.AuthorIsVerified,
+			&activeLiveChatMessage.LiveChatId,
+			&activeLiveChatMessage.DisplayMessage,
+			&activeLiveChatMessage.PublishedAt,
+			&activeLiveChatMessage.IsSuperChat,
+			&activeLiveChatMessage.AmountDisplayString,
+			&activeLiveChatMessage.Currency,
+			&activeLiveChatMessage.PageToken,
+			&lastUpdate,
+		); err != nil {
 			return nil, fmt.Errorf("can not scan activeLiveChatMessage by videoId and token: %w", err)
-                }
+		}
 		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
-        }
-        return activeLiveChatMessages, nil
+	}
+	return activeLiveChatMessages, nil
 }
 
-func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages []*pb.ActiveLiveChatMessage) (error) {
+func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages []*pb.ActiveLiveChatMessage) error {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return fmt.Errorf("can not start transaction in UpdateActiveLiveChatMessages: %w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			if err := tx.Rollback(); err != nil {
+				log.Printf("can not rollback of activeLiveChatMessage: %v", err)
+			}
 			panic(p)
 		}
 	}()
 	nowUnix := time.Now().Unix()
 	for _, activeLiveChatMessage := range activeLiveChatMessages {
 		res, err := tx.Exec(
-		    `INSERT OR REPLACE INTO activeLiveChatMessage (
+			`INSERT OR REPLACE INTO activeLiveChatMessage (
 			messageId,
 			channelId,
 			videoId,
@@ -195,123 +197,125 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages [
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?, ?, ?, ?, ?, ?
 		    )`,
-		    activeLiveChatMessage.MessageId,
-		    activeLiveChatMessage.ChannelId,
-		    activeLiveChatMessage.VideoId,
-		    activeLiveChatMessage.ApiEtag,
-		    activeLiveChatMessage.AuthorChannelId,
-		    activeLiveChatMessage.AuthorChannelUrl,
-		    activeLiveChatMessage.AuthorDisplayName,
-		    activeLiveChatMessage.AuthorIsChatModerator,
-		    activeLiveChatMessage.AuthorIsChatOwner,
-		    activeLiveChatMessage.AuthorIsChatSponsor,
-		    activeLiveChatMessage.AuthorIsVerified,
-		    activeLiveChatMessage.LiveChatId,
-		    activeLiveChatMessage.DisplayMessage,
-		    activeLiveChatMessage.PublishedAt,
-		    activeLiveChatMessage.IsSuperChat,
-		    activeLiveChatMessage.AmountDisplayString,
-		    activeLiveChatMessage.Currency,
-		    activeLiveChatMessage.PageToken,
-		    nowUnix,
+			activeLiveChatMessage.MessageId,
+			activeLiveChatMessage.ChannelId,
+			activeLiveChatMessage.VideoId,
+			activeLiveChatMessage.ApiEtag,
+			activeLiveChatMessage.AuthorChannelId,
+			activeLiveChatMessage.AuthorChannelUrl,
+			activeLiveChatMessage.AuthorDisplayName,
+			activeLiveChatMessage.AuthorIsChatModerator,
+			activeLiveChatMessage.AuthorIsChatOwner,
+			activeLiveChatMessage.AuthorIsChatSponsor,
+			activeLiveChatMessage.AuthorIsVerified,
+			activeLiveChatMessage.LiveChatId,
+			activeLiveChatMessage.DisplayMessage,
+			activeLiveChatMessage.PublishedAt,
+			activeLiveChatMessage.IsSuperChat,
+			activeLiveChatMessage.AmountDisplayString,
+			activeLiveChatMessage.Currency,
+			activeLiveChatMessage.PageToken,
+			nowUnix,
 		)
 		if err != nil {
-		        tx.Rollback()
 			return fmt.Errorf("can not insert activeLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
-		        tx.Rollback()
 			return fmt.Errorf("can not get insert id of activeLiveChatMessage: %w", err)
 		}
 		if d.verbose {
 			log.Printf("update activeLiveChatMessage (messageId = %v, insert id = %v)", activeLiveChatMessage.MessageId, id)
 		}
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("can not commit of activeLiveChatMessage: %w", err)
+	}
 	return nil
 }
 
-func (d *DatabaseOperator) DeleteActiveLiveChatMessagesByLastUpdate(lastUpdate int) (error) {
+func (d *DatabaseOperator) DeleteActiveLiveChatMessagesByLastUpdate(lastUpdate int) error {
 	res, err := d.db.Exec(`DELETE FROM activeLiveChatMessage WHERE lastUpdate < ?`, lastUpdate)
-        if err != nil {
+	if err != nil {
 		return fmt.Errorf("can not delete activeLiveChatMessages: %w", err)
-        }
-        rowsAffected, err := res.RowsAffected()
-        if err != nil {
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
 		return fmt.Errorf("can not get rowsAffected of activeLiveChatMessage: %w", err)
-        }
+	}
 	if d.verbose {
-		log.Printf("delete activeLiveChatMessages (lastUpdate = %v, rowsAffected = %v)",lastUpdate, rowsAffected)
+		log.Printf("delete activeLiveChatMessages (lastUpdate = %v, rowsAffected = %v)", lastUpdate, rowsAffected)
 	}
 
-        return nil
+	return nil
 }
 
 func (d *DatabaseOperator) GetArchiveLiveChatMessagesByVideoIdAndToken(videoId string, offset int64, count int64) ([]*pb.ArchiveLiveChatMessage, error) {
 	archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0)
-        archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
-        if err != nil {
+	archiveLiveChatMessageRows, err := d.db.Query(`SELECT * FROM archiveLiveChatMessage WHERE videoId = ? LIMIT ? OFFSET ?`, videoId, count, offset)
+	if err != nil {
 		return nil, fmt.Errorf("can not get archiveLiveChatMessage by videoId and token: %w", err)
-        }
-        defer archiveLiveChatMessageRows.Close()
-        for archiveLiveChatMessageRows.Next() {
+	}
+	defer archiveLiveChatMessageRows.Close()
+	for archiveLiveChatMessageRows.Next() {
 		var lastUpdate int
-                archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{}
-                if err := archiveLiveChatMessageRows.Scan(
-		    &archiveLiveChatMessage.MessageId,
-		    &archiveLiveChatMessage.ChannelId,
-		    &archiveLiveChatMessage.VideoId,
-		    &archiveLiveChatMessage.ClientId,
-		    &archiveLiveChatMessage.AuthorName,
-		    &archiveLiveChatMessage.AuthorExternalChannelId,
-		    &archiveLiveChatMessage.MessageText,
-		    &archiveLiveChatMessage.PurchaseAmountText,
-		    &archiveLiveChatMessage.IsPaid,
-		    &archiveLiveChatMessage.TimestampUsec,
-		    &archiveLiveChatMessage.TimestampText,
-		    &archiveLiveChatMessage.VideoOffsetTimeMsec,
-		    &archiveLiveChatMessage.Continuation,
-		    &lastUpdate,
-                ); err != nil {
+		archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{}
+		if err := archiveLiveChatMessageRows.Scan(
+			&archiveLiveChatMessage.MessageId,
+			&archiveLiveChatMessage.ChannelId,
+			&archiveLiveChatMessage.VideoId,
+			&archiveLiveChatMessage.ClientId,
+			&archiveLiveChatMessage.AuthorName,
+			&archiveLiveChatMessage.AuthorExternalChannelId,
+			&archiveLiveChatMessage.MessageText,
+			&archiveLiveChatMessage.PurchaseAmountText,
+			&archiveLiveChatMessage.IsPaid,
+			&archiveLiveChatMessage.TimestampUsec,
+			&archiveLiveChatMessage.TimestampText,
+			&archiveLiveChatMessage.VideoOffsetTimeMsec,
+			&archiveLiveChatMessage.Continuation,
+			&lastUpdate,
+		); err != nil {
 			return nil, fmt.Errorf("can not scan archiveLiveChatMessage by videoId and token: %w", err)
-                }
+		}
 		archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
-        }
-        return archiveLiveChatMessages, nil
+	}
+	return archiveLiveChatMessages, nil
 }
 
 func (d *DatabaseOperator) CountArchiveLiveChatMessagesByVideoId(videoId string) (int, error) {
-        archiveLiveChatMessageRows, err := d.db.Query(`SELECT count(*) FROM archiveLiveChatMessage WHERE videoId = ?`, videoId)
-        if err != nil {
+	archiveLiveChatMessageRows, err := d.db.Query(`SELECT count(*) FROM archiveLiveChatMessage WHERE videoId = ?`, videoId)
+	if err != nil {
 		return -1, fmt.Errorf("can not get archiveLiveChatMessage by videoId: %w", err)
-        }
-        defer archiveLiveChatMessageRows.Close()
-        for archiveLiveChatMessageRows.Next() {
+	}
+	defer archiveLiveChatMessageRows.Close()
+	for archiveLiveChatMessageRows.Next() {
 		var count int
-                if err := archiveLiveChatMessageRows.Scan(&count); err != nil {
+		if err := archiveLiveChatMessageRows.Scan(&count); err != nil {
 			return 0, fmt.Errorf("can not scan archiveLiveChatMessage by videoId: %w", err)
-                }
+		}
 		return count, nil
-        }
-        return 0, nil
+	}
+	return 0, nil
 }
 
-func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages []*pb.ArchiveLiveChatMessage) (error) {
+func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages []*pb.ArchiveLiveChatMessage) error {
 	tx, err := d.db.Begin()
 	if err != nil {
 		return fmt.Errorf("can not start transaction in UpdateArchiveLiveChatMessages: %w", err)
 	}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			if err := tx.Rollback(); err != nil {
+				log.Printf("can not rollback of archiveLiveChatMessage: %v", err)
+			}
 			panic(p)
 		}
 	}()
 	nowUnix := time.Now().Unix()
 	for _, archiveLiveChatMessage := range archiveLiveChatMessages {
 		res, err := tx.Exec(
-		    `INSERT OR REPLACE INTO archiveLiveChatMessage (
+			`INSERT OR REPLACE INTO archiveLiveChatMessage (
 			messageId,
 			channelId,
 			videoId,
@@ -330,55 +334,55 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 			?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 			?, ?, ?, ?
 		    )`,
-		    archiveLiveChatMessage.MessageId,
-		    archiveLiveChatMessage.ChannelId,
-		    archiveLiveChatMessage.VideoId,
-		    archiveLiveChatMessage.ClientId,
-		    archiveLiveChatMessage.AuthorName,
-		    archiveLiveChatMessage.AuthorExternalChannelId,
-		    archiveLiveChatMessage.MessageText,
-		    archiveLiveChatMessage.PurchaseAmountText,
-		    archiveLiveChatMessage.IsPaid,
-		    archiveLiveChatMessage.TimestampUsec,
-		    archiveLiveChatMessage.TimestampText,
-		    archiveLiveChatMessage.VideoOffsetTimeMsec,
-		    archiveLiveChatMessage.Continuation,
-		    nowUnix,
+			archiveLiveChatMessage.MessageId,
+			archiveLiveChatMessage.ChannelId,
+			archiveLiveChatMessage.VideoId,
+			archiveLiveChatMessage.ClientId,
+			archiveLiveChatMessage.AuthorName,
+			archiveLiveChatMessage.AuthorExternalChannelId,
+			archiveLiveChatMessage.MessageText,
+			archiveLiveChatMessage.PurchaseAmountText,
+			archiveLiveChatMessage.IsPaid,
+			archiveLiveChatMessage.TimestampUsec,
+			archiveLiveChatMessage.TimestampText,
+			archiveLiveChatMessage.VideoOffsetTimeMsec,
+			archiveLiveChatMessage.Continuation,
+			nowUnix,
 		)
 		if err != nil {
-		        tx.Rollback()
 			return fmt.Errorf("can not insert archiveLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
-		        tx.Rollback()
 			return fmt.Errorf("can not get insert id of archiveLiveChatMessage: %w", err)
 		}
 		if d.verbose {
 			log.Printf("update archiveLiveChatMessage (messageId = %v, insert id = %v)", archiveLiveChatMessage.MessageId, id)
 		}
 	}
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("can not commit of archiveLiveChatMessage: %v", archiveLiveChatMessage.MessageId, id)
+	}
 	return nil
 }
 
-func (d *DatabaseOperator) DeleteArchiveLiveChatMessagesByLastUpdate(lastUpdate int) (error) {
+func (d *DatabaseOperator) DeleteArchiveLiveChatMessagesByLastUpdate(lastUpdate int) error {
 	res, err := d.db.Exec(`DELETE FROM archiveLiveChatMessage WHERE lastUpdate = ?`, lastUpdate)
-        if err != nil {
+	if err != nil {
 		return fmt.Errorf("can not delete archiveLiveChatMessages: %w", err)
-        }
-        rowsAffected, err := res.RowsAffected()
-        if err != nil {
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
 		return fmt.Errorf("can not get rowsAffected of archiveLiveChatMessage: %w", err)
-        }
+	}
 	if d.verbose {
 		log.Printf("delete archiveLiveChatMessages (lastUpdate = %v, rowsAffected = %v)", lastUpdate, rowsAffected)
 	}
-        return nil
+	return nil
 }
 
-func (d *DatabaseOperator) createTables() (error) {
-        videoTableCreateQuery := `
+func (d *DatabaseOperator) createTables() error {
+	videoTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS video (
                 videoId            TEXT PRIMARY KEY,
                 channelId          TEXT NOT NULL,
@@ -397,17 +401,17 @@ func (d *DatabaseOperator) createTables() (error) {
 		embeddable         TEXT NOT NULL,
 		lastUpdate         INTEGER NOT NULL
 	)`
-	_, err := d.db.Exec(videoTableCreateQuery);
-	if  err != nil {
+	_, err := d.db.Exec(videoTableCreateQuery)
+	if err != nil {
 		return fmt.Errorf("can not create video table: %w", err)
 	}
-        videoLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS videoLastUpdateIndex ON video(lastUpdate)`
-	_, err = d.db.Exec(videoLastUpdateIndexQuery);
-	if  err != nil {
+	videoLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS videoLastUpdateIndex ON video(lastUpdate)`
+	_, err = d.db.Exec(videoLastUpdateIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create lastUpdate index of video: %w", err)
 	}
 
-        activeLiveChatMessageTableCreateQuery := `
+	activeLiveChatMessageTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS activeLiveChatMessage (
                 messageId             TEXT PRIMARY KEY,
 		channelId             TEXT NOT NULL,
@@ -429,27 +433,27 @@ func (d *DatabaseOperator) createTables() (error) {
 		pageToken             TEXT NOT NULL,
 		lastUpdate            INTEGER NOT NULL
 	)`
-	_, err = d.db.Exec(activeLiveChatMessageTableCreateQuery);
-	if  err != nil {
+	_, err = d.db.Exec(activeLiveChatMessageTableCreateQuery)
+	if err != nil {
 		return fmt.Errorf("can not create activeLiveChatMessage table: %w", err)
 	}
-        activeLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageVideoIdIndex ON activeLiveChatMessage(videoId)`
-	_, err = d.db.Exec(activeLiveChatMessageVideoIdIndexQuery);
-	if  err != nil {
+	activeLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageVideoIdIndex ON activeLiveChatMessage(videoId)`
+	_, err = d.db.Exec(activeLiveChatMessageVideoIdIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create videoId index of avtiveLiveChatMessage: %w", err)
 	}
-        activeLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageChannelIdIndex ON activeLiveChatMessage(channelId)`
-	_, err = d.db.Exec(activeLiveChatMessageChannelIdIndexQuery);
-	if  err != nil {
+	activeLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageChannelIdIndex ON activeLiveChatMessage(channelId)`
+	_, err = d.db.Exec(activeLiveChatMessageChannelIdIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create channelId index of activeLiveChatMessage: %w", err)
 	}
-        activeLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageLastUPdateIndex ON activeLiveChatMessage(lastUpdate)`
-	_, err = d.db.Exec(activeLiveChatMessageLastUpdateIndexQuery);
-	if  err != nil {
+	activeLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS activeLiveChatMessageLastUPdateIndex ON activeLiveChatMessage(lastUpdate)`
+	_, err = d.db.Exec(activeLiveChatMessageLastUpdateIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create lastUpdate index of activeLiveChatMessage: %w", err)
 	}
 
-        archiveLiveChatMessageTableCreateQuery := `
+	archiveLiveChatMessageTableCreateQuery := `
             CREATE TABLE IF NOT EXISTS archiveLiveChatMessage (
 		messageId               TEXT PRIMARY KEY,
 		channelId               TEXT NOT NULL,
@@ -466,65 +470,65 @@ func (d *DatabaseOperator) createTables() (error) {
 		continuation            TEXT NOT NULL,
 		lastUpdate              INTEGER NOT NULL
 	)`
-	_, err = d.db.Exec(archiveLiveChatMessageTableCreateQuery);
-	if  err != nil {
+	_, err = d.db.Exec(archiveLiveChatMessageTableCreateQuery)
+	if err != nil {
 		return fmt.Errorf("can not create archiveLiveChatMessage table: %w", err)
 	}
-        archiveLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageVideoIdIndex ON archiveLiveChatMessage(videoId)`
-	_, err = d.db.Exec(archiveLiveChatMessageVideoIdIndexQuery);
-	if  err != nil {
+	archiveLiveChatMessageVideoIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageVideoIdIndex ON archiveLiveChatMessage(videoId)`
+	_, err = d.db.Exec(archiveLiveChatMessageVideoIdIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create vodeoId index of archiveLiveChatMessage: %w", err)
 	}
-        archiveLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageChannelIdIndex ON archiveLiveChatMessage(channelId)`
-	_, err = d.db.Exec(archiveLiveChatMessageChannelIdIndexQuery);
-	if  err != nil {
+	archiveLiveChatMessageChannelIdIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageChannelIdIndex ON archiveLiveChatMessage(channelId)`
+	_, err = d.db.Exec(archiveLiveChatMessageChannelIdIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create channelId index archiveLiveChatMessage: %w", err)
 	}
-        archiveLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageLastUPdateIndex ON archiveLiveChatMessage(lastUpdate)`
-	_, err = d.db.Exec(archiveLiveChatMessageLastUpdateIndexQuery);
-	if  err != nil {
+	archiveLiveChatMessageLastUpdateIndexQuery := `CREATE INDEX IF NOT EXISTS archiveLiveChatMessageLastUPdateIndex ON archiveLiveChatMessage(lastUpdate)`
+	_, err = d.db.Exec(archiveLiveChatMessageLastUpdateIndexQuery)
+	if err != nil {
 		return fmt.Errorf("can not create lastUPdate of archiveLiveChatMessage: %w", err)
 	}
 
 	return nil
 }
 
-func (d *DatabaseOperator) Open() (error) {
-        db, err := sql.Open("sqlite3", d.databasePath)
-        if err != nil {
+func (d *DatabaseOperator) Open() error {
+	db, err := sql.Open("sqlite3", d.databasePath)
+	if err != nil {
 		return fmt.Errorf("can not open database: %w", err)
-        }
-        d.db = db
-        err = d.createTables()
-        if err != nil {
+	}
+	d.db = db
+	err = d.createTables()
+	if err != nil {
 		return fmt.Errorf("can not create table of database: %w", err)
-        }
-        return nil
+	}
+	return nil
 }
 
-func (d *DatabaseOperator) Close()  {
-        d.db.Close()
+func (d *DatabaseOperator) Close() {
+	d.db.Close()
 }
 
 func NewDatabaseOperator(databasePath string, opts ...Option) (*DatabaseOperator, error) {
 	baseOpts := defaultOptions()
-        for _, opt := range opts {
-                opt(baseOpts)
-        }
-        if databasePath == "" {
-                return nil, fmt.Errorf("no database path")
-        }
-        dirname := filepath.Dir(databasePath)
-        _, err := os.Stat(dirname)
-        if err != nil {
-                err := os.MkdirAll(dirname, 0755)
-                if err != nil {
-                        return nil, fmt.Errorf("can not create directory (%v)", dirname)
-                }
-        }
-        return &DatabaseOperator{
-		verbose: baseOpts.verbose,
-                databasePath: databasePath,
-                db: nil,
-        }, nil
+	for _, opt := range opts {
+		opt(baseOpts)
+	}
+	if databasePath == "" {
+		return nil, fmt.Errorf("no database path")
+	}
+	dirname := filepath.Dir(databasePath)
+	_, err := os.Stat(dirname)
+	if err != nil {
+		err := os.MkdirAll(dirname, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("can not create directory (%v)", dirname)
+		}
+	}
+	return &DatabaseOperator{
+		verbose:      baseOpts.verbose,
+		databasePath: databasePath,
+		db:           nil,
+	}, nil
 }

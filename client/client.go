@@ -1,13 +1,13 @@
 package main
 
 import (
-    "fmt"
-    "flag"
-    "context"
-    "time"
-    "io"
-    "google.golang.org/grpc"
-    pb "github.com/potix/ylcc/protocol"
+	"context"
+	"flag"
+	"fmt"
+	pb "github.com/potix/ylcc/protocol"
+	"google.golang.org/grpc"
+	"io"
+	"time"
 )
 
 const (
@@ -17,10 +17,10 @@ const (
 func getVideo(client pb.YlccClient, videoId string) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		60 * time.Second,
+		60*time.Second,
 	)
 	defer cancel()
-	request := &pb.GetVideoRequest {
+	request := &pb.GetVideoRequest{
 		VideoId: videoId,
 	}
 	response, err := client.GetVideo(ctx, request)
@@ -39,10 +39,10 @@ func getVideo(client pb.YlccClient, videoId string) {
 func startCollectionActiveLiveChat(client pb.YlccClient, videoId string) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		60 * time.Second,
+		60*time.Second,
 	)
 	defer cancel()
-	request := &pb.StartCollectionActiveLiveChatRequest {
+	request := &pb.StartCollectionActiveLiveChatRequest{
 		VideoId: videoId,
 	}
 	response, err := client.StartCollectionActiveLiveChat(ctx, request)
@@ -60,7 +60,7 @@ func startCollectionActiveLiveChat(client pb.YlccClient, videoId string) {
 
 func pollActiveLiveChat(client pb.YlccClient, videoId string) {
 	ctx := context.Background()
-	request := &pb.PollActiveLiveChatRequest {
+	request := &pb.PollActiveLiveChatRequest{
 		VideoId: videoId,
 	}
 	pollClient, err := client.PollActiveLiveChat(ctx, request)
@@ -90,13 +90,13 @@ func pollActiveLiveChat(client pb.YlccClient, videoId string) {
 func getCachedActiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, error) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		60 * time.Second,
+		60*time.Second,
 	)
 	defer cancel()
-	request := &pb.GetCachedActiveLiveChatRequest {
+	request := &pb.GetCachedActiveLiveChatRequest{
 		VideoId: videoId,
-		Offset: offset,
-		Count: count,
+		Offset:  offset,
+		Count:   count,
 	}
 	response, err := client.GetCachedActiveLiveChat(ctx, request)
 	if err != nil {
@@ -121,7 +121,7 @@ func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
 	var count int64 = 2000
 	for {
 		ok, err := getCachedActiveLiveChat(client, videoId, offset, count)
-		if  err != nil {
+		if err != nil {
 			fmt.Printf("%v", err)
 		}
 		if !ok {
@@ -134,10 +134,10 @@ func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
 func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		60 * time.Second,
+		60*time.Second,
 	)
 	defer cancel()
-	request := &pb.StartCollectionArchiveLiveChatRequest {
+	request := &pb.StartCollectionArchiveLiveChatRequest{
 		VideoId: videoId,
 	}
 	response, err := client.StartCollectionArchiveLiveChat(ctx, request)
@@ -154,16 +154,15 @@ func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
 }
 
 func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, bool, error) {
-RETRY:
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
-		60 * time.Second,
+		60*time.Second,
 	)
 	defer cancel()
-	request := &pb.GetArchiveLiveChatRequest {
+	request := &pb.GetArchiveLiveChatRequest{
 		VideoId: videoId,
-		Offset: offset,
-		Count: count,
+		Offset:  offset,
+		Count:   count,
 	}
 	response, err := client.GetArchiveLiveChat(ctx, request)
 	if err != nil {
@@ -178,12 +177,12 @@ RETRY:
 		return false, false, fmt.Errorf("%v", response.Status.Message)
 	}
 	if len(response.ArchiveLiveChatMessages) == 0 {
-		return false, false,  nil
+		return false, false, nil
 	}
 	for _, archiveLiveChatMessage := range response.ArchiveLiveChatMessages {
 		fmt.Printf("%+v", archiveLiveChatMessage)
 	}
-	return true, nil
+	return true, false, nil
 }
 
 func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
@@ -191,7 +190,7 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 	var count int64 = 2000
 	for {
 		ok, retry, err := getArchiveLiveChat(client, videoId, offset, count)
-		if  err != nil {
+		if err != nil {
 			fmt.Printf("%v", err)
 		}
 		if retry {
@@ -206,11 +205,11 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 }
 
 func main() {
-	var mode  string
+	var mode string
 	var videoId string
 	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive>")
 	flag.StringVar(&videoId, "id", "", "<video id>")
-        flag.Parse()
+	flag.Parse()
 	conn, err := grpc.Dial(
 		addrPort,
 		grpc.WithInsecure(),
@@ -223,7 +222,7 @@ func main() {
 	}
 	defer conn.Close()
 	client := pb.NewYlccClient(conn)
-	switch (mode) {
+	switch mode {
 	case "active":
 		getVideo(client, videoId)
 		startCollectionActiveLiveChat(client, videoId)
@@ -237,6 +236,3 @@ func main() {
 		getArchiveLiveChatLoop(client, videoId)
 	}
 }
-
-
-

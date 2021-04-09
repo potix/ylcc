@@ -1,25 +1,24 @@
 package collector
 
 import (
-        "fmt"
-        "log"
-        "sync"
-        "io"
-        "google.golang.org/api/youtube/v3"
-	"github.com/potix/ylcc/youtubehelper"
+	"fmt"
 	pb "github.com/potix/ylcc/protocol"
-
+	"github.com/potix/ylcc/youtubehelper"
+	"google.golang.org/api/youtube/v3"
+	"io"
+	"log"
+	"sync"
 )
 
 const (
-        bulkMessageMax int64 = 2000
+	bulkMessageMax int64 = 2000
 )
 
 type Collector struct {
 	verbose                               bool
 	dbOperator                            *DatabaseOperator
 	requestedVideoForActiveLiveChatMutex  *sync.Mutex
-	requestedVideoForActiveLiveChat	      map[string]bool
+	requestedVideoForActiveLiveChat       map[string]bool
 	requestedVideoForArchiveLiveChatMutex *sync.Mutex
 	requestedVideoForArchiveLiveChat      map[string]bool
 	publishActiveLiveChatCh               chan *publishActiveLiveChatMessagesParams
@@ -29,7 +28,6 @@ type Collector struct {
 	publisherFinishResponseCh             chan int
 	activeLiveChatCollector               *youtubehelper.ActiveLiveChatCollector
 	archiveLiveChatCollector              *youtubehelper.ArchiveLiveChatCollector
-
 }
 
 type publishActiveLiveChatMessagesParams struct {
@@ -43,11 +41,11 @@ type subscribeActiveLiveChatParams struct {
 	subscriberCh chan *pb.PollActiveLiveChatResponse
 }
 
-func (s *subscribeActiveLiveChatParams) GetSubscriberCh() (chan *pb.PollActiveLiveChatResponse) {
+func (s *subscribeActiveLiveChatParams) GetSubscriberCh() chan *pb.PollActiveLiveChatResponse {
 	return s.subscriberCh
 }
 
-func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) (bool) {
+func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
@@ -58,7 +56,7 @@ func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) (boo
 	return true
 }
 
-func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) (bool) {
+func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
@@ -68,7 +66,7 @@ func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) (bool) 
 	return false
 }
 
-func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) (bool) {
+func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
@@ -79,8 +77,7 @@ func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) (b
 	return true
 }
 
-
-func (c *Collector) registerRequestedVideoForArchiveLiveChat(videoId string) (bool) {
+func (c *Collector) registerRequestedVideoForArchiveLiveChat(videoId string) bool {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
 	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
@@ -91,7 +88,7 @@ func (c *Collector) registerRequestedVideoForArchiveLiveChat(videoId string) (bo
 	return true
 }
 
-func (c *Collector) checkRequestedVideoForArchiveLiveChat(videoId string) (bool) {
+func (c *Collector) checkRequestedVideoForArchiveLiveChat(videoId string) bool {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
 	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
@@ -101,7 +98,7 @@ func (c *Collector) checkRequestedVideoForArchiveLiveChat(videoId string) (bool)
 	return false
 }
 
-func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) (bool) {
+func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) bool {
 	c.requestedVideoForArchiveLiveChatMutex.Lock()
 	defer c.requestedVideoForArchiveLiveChatMutex.Unlock()
 	_, ok := c.requestedVideoForArchiveLiveChat[videoId]
@@ -115,102 +112,102 @@ func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) (
 func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtubeService *youtube.Service) {
 	params, err := c.activeLiveChatCollector.CreateParams(video)
 	if err != nil {
-		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
-			err: err,
-			videoId: video.Id,
+		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
+			err:                    err,
+			videoId:                video.Id,
 			activeLiveChatMessages: nil,
 		}
 		c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 		log.Printf("can not create params of active live chat collector: %v\n", err)
-                return
+		return
 	}
-        for {
-                liveChatMessageListResponse, err :=  c.activeLiveChatCollector.GetActiveLiveChat(params, youtubeService, bulkMessageMax)
-                if err != nil {
-			c.publishActiveLiveChatCh <-&publishActiveLiveChatMessagesParams {
-				err: err,
-				videoId: video.Id,
+	for {
+		liveChatMessageListResponse, err := c.activeLiveChatCollector.GetActiveLiveChat(params, youtubeService, bulkMessageMax)
+		if err != nil {
+			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
+				err:                    err,
+				videoId:                video.Id,
 				activeLiveChatMessages: nil,
 			}
 			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 			if c.verbose {
 				log.Printf("can not get live chat messages: %v\n", err)
 			}
-                        return
-                }
+			return
+		}
 		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, bulkMessageMax)
-                for _, item := range liveChatMessageListResponse.Items {
-                        if item.Snippet.SuperChatDetails != nil {
+		for _, item := range liveChatMessageListResponse.Items {
+			if item.Snippet.SuperChatDetails != nil {
 				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
-					MessageId: item.Id,
-					ChannelId: video.Snippet.ChannelId,
-					VideoId: video.Id,
-					ApiEtag: liveChatMessageListResponse.Etag,
-					AuthorChannelId: item.AuthorDetails.ChannelId,
-					AuthorChannelUrl: item.AuthorDetails.ChannelUrl,
-					AuthorDisplayName: item.AuthorDetails.DisplayName,
+					MessageId:             item.Id,
+					ChannelId:             video.Snippet.ChannelId,
+					VideoId:               video.Id,
+					ApiEtag:               liveChatMessageListResponse.Etag,
+					AuthorChannelId:       item.AuthorDetails.ChannelId,
+					AuthorChannelUrl:      item.AuthorDetails.ChannelUrl,
+					AuthorDisplayName:     item.AuthorDetails.DisplayName,
 					AuthorIsChatModerator: item.AuthorDetails.IsChatModerator,
-					AuthorIsChatOwner: item.AuthorDetails.IsChatOwner,
-					AuthorIsChatSponsor: item.AuthorDetails.IsChatSponsor,
-					AuthorIsVerified: item.AuthorDetails.IsVerified,
-					LiveChatId: item.Snippet.LiveChatId,
-					DisplayMessage: item.Snippet.SuperChatDetails.UserComment,
-					PublishedAt: item.Snippet.PublishedAt,
-					IsSuperChat: true,
-					AmountDisplayString: item.Snippet.SuperChatDetails.AmountDisplayString,
-					Currency: item.Snippet.SuperChatDetails.AmountDisplayString,
-					PageToken: params.GetPageToken(),
+					AuthorIsChatOwner:     item.AuthorDetails.IsChatOwner,
+					AuthorIsChatSponsor:   item.AuthorDetails.IsChatSponsor,
+					AuthorIsVerified:      item.AuthorDetails.IsVerified,
+					LiveChatId:            item.Snippet.LiveChatId,
+					DisplayMessage:        item.Snippet.SuperChatDetails.UserComment,
+					PublishedAt:           item.Snippet.PublishedAt,
+					IsSuperChat:           true,
+					AmountDisplayString:   item.Snippet.SuperChatDetails.AmountDisplayString,
+					Currency:              item.Snippet.SuperChatDetails.AmountDisplayString,
+					PageToken:             params.GetPageToken(),
 				}
 				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
-                        } else if item.Snippet.TextMessageDetails != nil {
+			} else if item.Snippet.TextMessageDetails != nil {
 				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
-					MessageId: item.Id,
-					ChannelId: video.Snippet.ChannelId,
-					VideoId: video.Id,
-					ApiEtag: liveChatMessageListResponse.Etag,
-					AuthorChannelId: item.AuthorDetails.ChannelId,
-					AuthorChannelUrl: item.AuthorDetails.ChannelUrl,
-					AuthorDisplayName: item.AuthorDetails.DisplayName,
+					MessageId:             item.Id,
+					ChannelId:             video.Snippet.ChannelId,
+					VideoId:               video.Id,
+					ApiEtag:               liveChatMessageListResponse.Etag,
+					AuthorChannelId:       item.AuthorDetails.ChannelId,
+					AuthorChannelUrl:      item.AuthorDetails.ChannelUrl,
+					AuthorDisplayName:     item.AuthorDetails.DisplayName,
 					AuthorIsChatModerator: item.AuthorDetails.IsChatModerator,
-					AuthorIsChatOwner: item.AuthorDetails.IsChatOwner,
-					AuthorIsChatSponsor: item.AuthorDetails.IsChatSponsor,
-					AuthorIsVerified: item.AuthorDetails.IsVerified,
-					LiveChatId: item.Snippet.LiveChatId,
-					DisplayMessage: item.Snippet.TextMessageDetails.MessageText,
-					PublishedAt: item.Snippet.PublishedAt,
-					IsSuperChat: false,
-					AmountDisplayString: "",
-					Currency: "",
-					PageToken: params.GetPageToken(),
+					AuthorIsChatOwner:     item.AuthorDetails.IsChatOwner,
+					AuthorIsChatSponsor:   item.AuthorDetails.IsChatSponsor,
+					AuthorIsVerified:      item.AuthorDetails.IsVerified,
+					LiveChatId:            item.Snippet.LiveChatId,
+					DisplayMessage:        item.Snippet.TextMessageDetails.MessageText,
+					PublishedAt:           item.Snippet.PublishedAt,
+					IsSuperChat:           false,
+					AmountDisplayString:   "",
+					Currency:              "",
+					PageToken:             params.GetPageToken(),
 				}
 				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
-                        }
-                }
+			}
+		}
 		if err := c.dbOperator.UpdateActiveLiveChatMessages(activeLiveChatMessages); err != nil {
-			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
-				err: err,
-				videoId: video.Id,
+			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
+				err:                    err,
+				videoId:                video.Id,
 				activeLiveChatMessages: nil,
 			}
 			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 			log.Printf("can not update active live chat messages in database: %v\n", err)
-                        return
-                }
-		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
-			err: nil,
-			videoId: video.Id,
+			return
+		}
+		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
+			err:                    nil,
+			videoId:                video.Id,
 			activeLiveChatMessages: activeLiveChatMessages,
 		}
 		ok := c.activeLiveChatCollector.Next(params, liveChatMessageListResponse)
 		if !ok {
-			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams {
-				err: io.EOF,
-				videoId: video.Id,
+			c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
+				err:                    io.EOF,
+				videoId:                video.Id,
 				activeLiveChatMessages: nil,
 			}
 			c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 		}
-        }
+	}
 }
 
 func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
@@ -219,24 +216,24 @@ func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse,
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.GetVideoResponse {
+		return &pb.GetVideoResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
 		status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
-		return &pb.GetVideoResponse {
+		return &pb.GetVideoResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
-	return &pb.GetVideoResponse {
+	return &pb.GetVideoResponse{
 		Status: status,
-		Video: video,
+		Video:  video,
 	}, nil
 }
 
@@ -246,9 +243,9 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
 		status.Message = fmt.Sprintf("be in progress (videoId = %v)", request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
@@ -256,9 +253,9 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
@@ -266,62 +263,62 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
 		status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
-	video := &pb.Video {
-                VideoId: youtubeVideo.Id,
-                ChannelId: youtubeVideo.Snippet.ChannelId,
-                CategoryId: youtubeVideo.Snippet.CategoryId,
-                Title: youtubeVideo.Snippet.Title,
-                Description: youtubeVideo.Snippet.Description,
-                PublishedAt: youtubeVideo.Snippet.PublishedAt,
-                Duration: youtubeVideo.ContentDetails.Duration,
-                ActiveLiveChatId: youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
-                ActualStartTime: youtubeVideo.LiveStreamingDetails.ActualStartTime,
-                ActualEndTime: youtubeVideo.LiveStreamingDetails.ActualEndTime,
-                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
-                ScheduledEndTime: youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
-                PrivacyStatus: youtubeVideo.Status.PrivacyStatus,
-                UploadStatus: youtubeVideo.Status.UploadStatus,
-                Embeddable : youtubeVideo.Status.Embeddable,
-        }
-        err = c.dbOperator.UpdateVideo(video)
+	video := &pb.Video{
+		VideoId:            youtubeVideo.Id,
+		ChannelId:          youtubeVideo.Snippet.ChannelId,
+		CategoryId:         youtubeVideo.Snippet.CategoryId,
+		Title:              youtubeVideo.Snippet.Title,
+		Description:        youtubeVideo.Snippet.Description,
+		PublishedAt:        youtubeVideo.Snippet.PublishedAt,
+		Duration:           youtubeVideo.ContentDetails.Duration,
+		ActiveLiveChatId:   youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
+		ActualStartTime:    youtubeVideo.LiveStreamingDetails.ActualStartTime,
+		ActualEndTime:      youtubeVideo.LiveStreamingDetails.ActualEndTime,
+		ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
+		ScheduledEndTime:   youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
+		PrivacyStatus:      youtubeVideo.Status.PrivacyStatus,
+		UploadStatus:       youtubeVideo.Status.UploadStatus,
+		Embeddable:         youtubeVideo.Status.Embeddable,
+	}
+	err = c.dbOperator.UpdateVideo(video)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
 	}
 	if video.ActiveLiveChatId == "" {
 		status.Code = pb.Code_NOT_FOUND
 		status.Message = fmt.Sprintf("not live video (videoId = %v)", request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.StartCollectionActiveLiveChatResponse {
+		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
-        }
+	}
 	go c.collectActiveLiveChatFromYoutube(youtubeVideo, youtubeService)
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
-	return &pb.StartCollectionActiveLiveChatResponse {
+	return &pb.StartCollectionActiveLiveChatResponse{
 		Status: status,
-		Video: video,
+		Video:  video,
 	}, nil
 }
 
@@ -331,114 +328,114 @@ func (c *Collector) GetCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 	if progress {
 		status.Code = pb.Code_IN_PROGRESS
 		status.Message = fmt.Sprintf("be in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
-		return &pb.GetCachedActiveLiveChatResponse {
-			Status: status,
+		return &pb.GetCachedActiveLiveChatResponse{
+			Status:                 status,
 			ActiveLiveChatMessages: nil,
 		}, nil
 	}
-	activeLiveChatMessages, err :=  c.dbOperator.GetActiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
+	activeLiveChatMessages, err := c.dbOperator.GetActiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v, offset = %v, count = %v)", err, request.VideoId, request.Offset, request.Count)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
-		return &pb.GetCachedActiveLiveChatResponse {
-			Status: status,
+		return &pb.GetCachedActiveLiveChatResponse{
+			Status:                 status,
 			ActiveLiveChatMessages: nil,
 		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
-	return &pb.GetCachedActiveLiveChatResponse {
-		Status: status,
+	return &pb.GetCachedActiveLiveChatResponse{
+		Status:                 status,
 		ActiveLiveChatMessages: activeLiveChatMessages,
 	}, nil
 }
 
 func (c *Collector) collectArchiveLiveChatFromYoutube(channelId string, videoId string) {
 	params, err := c.archiveLiveChatCollector.GetParams(videoId)
-        if err != nil {
-                log.Printf("can not get params of archive live chat: %v", err)
-                c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                return
-        }
+	if err != nil {
+		log.Printf("can not get params of archive live chat: %v", err)
+		c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+		return
+	}
 	for {
-                resp, err := c.archiveLiveChatCollector.GetArchiveLiveChat(params)
-                if err != nil {
-                        log.Printf("can not get archive live chat: %v", err)
+		resp, err := c.archiveLiveChatCollector.GetArchiveLiveChat(params)
+		if err != nil {
+			log.Printf("can not get archive live chat: %v", err)
 			c.unregisterRequestedVideoForArchiveLiveChat(videoId)
-                        return
-                }
+			return
+		}
 		archiveLiveChatMessages := make([]*pb.ArchiveLiveChatMessage, 0, bulkMessageMax)
 		for _, cact := range resp.ContinuationContents.LiveChatContinuation.Actions {
-                        for _, iact := range cact.ReplayChatItemAction.Actions {
-                                if iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID != "" {
+			for _, iact := range cact.ReplayChatItemAction.Actions {
+				if iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID != "" {
 					messageText := ""
-                                        for _, run := range iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.Message.Runs {
-                                                messageText += run.Text
+					for _, run := range iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.Message.Runs {
+						messageText += run.Text
 					}
 					archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-						MessageId: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID,
-						ChannelId: channelId,
-						VideoId: videoId,
-						ClientId: iact.AddChatItemAction.ClientID,
-						AuthorName: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorName.SimpleText,
+						MessageId:               iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.ID,
+						ChannelId:               channelId,
+						VideoId:                 videoId,
+						ClientId:                iact.AddChatItemAction.ClientID,
+						AuthorName:              iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorName.SimpleText,
 						AuthorExternalChannelId: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.AuthorExternalChannelID,
-						MessageText: messageText,
-						PurchaseAmountText: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText,
-						IsPaid: true,
-						TimestampUsec: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec,
-						TimestampText: iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText,
-						VideoOffsetTimeMsec: cact.ReplayChatItemAction.VideoOffsetTimeMsec,
-						Continuation: params.GetContinuation(),
+						MessageText:             messageText,
+						PurchaseAmountText:      iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.PurchaseAmountText.SimpleText,
+						IsPaid:                  true,
+						TimestampUsec:           iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampUsec,
+						TimestampText:           iact.AddChatItemAction.Item.LiveChatPaidMessageRenderer.TimestampText.SimpleText,
+						VideoOffsetTimeMsec:     cact.ReplayChatItemAction.VideoOffsetTimeMsec,
+						Continuation:            params.GetContinuation(),
 					}
 					archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
-                                }
+				}
 				if iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID != "" {
 					messageText := ""
-                                        for _, run := range iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
-                                                messageText += run.Text
-                                        }
+					for _, run := range iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.Message.Runs {
+						messageText += run.Text
+					}
 					archiveLiveChatMessage := &pb.ArchiveLiveChatMessage{
-						MessageId: iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID,
-						ChannelId: channelId,
-						VideoId: videoId,
-						ClientId: iact.AddChatItemAction.ClientID,
-						AuthorName: iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText,
+						MessageId:               iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.ID,
+						ChannelId:               channelId,
+						VideoId:                 videoId,
+						ClientId:                iact.AddChatItemAction.ClientID,
+						AuthorName:              iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorName.SimpleText,
 						AuthorExternalChannelId: iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.AuthorExternalChannelID,
-						MessageText: messageText,
-						PurchaseAmountText: "",
-						IsPaid: false,
-						TimestampUsec: iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec,
-						TimestampText: iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText,
-						VideoOffsetTimeMsec: cact.ReplayChatItemAction.VideoOffsetTimeMsec,
-						Continuation: params.GetContinuation(),
+						MessageText:             messageText,
+						PurchaseAmountText:      "",
+						IsPaid:                  false,
+						TimestampUsec:           iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampUsec,
+						TimestampText:           iact.AddChatItemAction.Item.LiveChatTextMessageRenderer.TimestampText.SimpleText,
+						VideoOffsetTimeMsec:     cact.ReplayChatItemAction.VideoOffsetTimeMsec,
+						Continuation:            params.GetContinuation(),
 					}
 					archiveLiveChatMessages = append(archiveLiveChatMessages, archiveLiveChatMessage)
-                                }
-                        }
-                }
+				}
+			}
+		}
 		if err := c.dbOperator.UpdateArchiveLiveChatMessages(archiveLiveChatMessages); err != nil {
 			c.unregisterRequestedVideoForArchiveLiveChat(videoId)
 			log.Printf("can not update archive live chat messages in database: %v\n", err)
-                        return
-                }
+			return
+		}
 		ok := c.archiveLiveChatCollector.Next(params, resp)
-                if !ok {
-                        break
-                }
-        }
-        c.unregisterRequestedVideoForArchiveLiveChat(videoId)
+		if !ok {
+			break
+		}
+	}
+	c.unregisterRequestedVideoForArchiveLiveChat(videoId)
 }
 
-func  (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionArchiveLiveChatRequest) (*pb.StartCollectionArchiveLiveChatResponse, error) {
+func (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionArchiveLiveChatRequest) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	ok := c.registerRequestedVideoForArchiveLiveChat(request.VideoId)
 	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
 		status.Message = fmt.Sprintf("be in progress (videoId = %v)", request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	youtubeService, err := c.activeLiveChatCollector.CreateYoutubeService()
@@ -446,9 +443,9 @@ func  (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionA
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	youtubeVideo, ok, err := c.activeLiveChatCollector.GetVideo(request.VideoId, youtubeService)
@@ -456,86 +453,86 @@ func  (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionA
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
 	if !ok {
 		status.Code = pb.Code_NOT_FOUND
 		status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: nil,
+			Video:  nil,
 		}, nil
 	}
-	video := &pb.Video {
-                VideoId: youtubeVideo.Id,
-                ChannelId: youtubeVideo.Snippet.ChannelId,
-                CategoryId: youtubeVideo.Snippet.CategoryId,
-                Title: youtubeVideo.Snippet.Title,
-                Description: youtubeVideo.Snippet.Description,
-                PublishedAt: youtubeVideo.Snippet.PublishedAt,
-                Duration: youtubeVideo.ContentDetails.Duration,
-                ActiveLiveChatId: youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
-                ActualStartTime: youtubeVideo.LiveStreamingDetails.ActualStartTime,
-                ActualEndTime: youtubeVideo.LiveStreamingDetails.ActualEndTime,
-                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
-                ScheduledEndTime: youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
-                PrivacyStatus: youtubeVideo.Status.PrivacyStatus,
-                UploadStatus: youtubeVideo.Status.UploadStatus,
-                Embeddable : youtubeVideo.Status.Embeddable,
-        }
-        err = c.dbOperator.UpdateVideo(video)
+	video := &pb.Video{
+		VideoId:            youtubeVideo.Id,
+		ChannelId:          youtubeVideo.Snippet.ChannelId,
+		CategoryId:         youtubeVideo.Snippet.CategoryId,
+		Title:              youtubeVideo.Snippet.Title,
+		Description:        youtubeVideo.Snippet.Description,
+		PublishedAt:        youtubeVideo.Snippet.PublishedAt,
+		Duration:           youtubeVideo.ContentDetails.Duration,
+		ActiveLiveChatId:   youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
+		ActualStartTime:    youtubeVideo.LiveStreamingDetails.ActualStartTime,
+		ActualEndTime:      youtubeVideo.LiveStreamingDetails.ActualEndTime,
+		ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
+		ScheduledEndTime:   youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
+		PrivacyStatus:      youtubeVideo.Status.PrivacyStatus,
+		UploadStatus:       youtubeVideo.Status.UploadStatus,
+		Embeddable:         youtubeVideo.Status.Embeddable,
+	}
+	err = c.dbOperator.UpdateVideo(video)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
 	}
 	if video.ActiveLiveChatId != "" {
 		status.Code = pb.Code_NOT_FOUND
 		status.Message = fmt.Sprintf("not archive video(videoId = %v)", request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.StartCollectionArchiveLiveChatResponse {
+		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
-			Video: video,
+			Video:  video,
 		}, nil
-        }
+	}
 	if !request.Replace {
-                count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(request.VideoId)
-                if err != nil {
+		count, err := c.dbOperator.CountArchiveLiveChatMessagesByVideoId(request.VideoId)
+		if err != nil {
 			status.Code = pb.Code_INTERNAL_ERROR
 			status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 			c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-			return &pb.StartCollectionArchiveLiveChatResponse {
+			return &pb.StartCollectionArchiveLiveChatResponse{
 				Status: status,
-				Video: video,
+				Video:  video,
 			}, nil
-                }
-                if count > 0 {
-                        if c.verbose {
-                                log.Printf("already exists archive live chat in database (videoId = %v)", request.VideoId)
-                        }
-                        c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
+		}
+		if count > 0 {
+			if c.verbose {
+				log.Printf("already exists archive live chat in database (videoId = %v)", request.VideoId)
+			}
+			c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
 			status.Code = pb.Code_SUCCESS
 			status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
-			return &pb.StartCollectionArchiveLiveChatResponse {
+			return &pb.StartCollectionArchiveLiveChatResponse{
 				Status: status,
-				Video: video,
+				Video:  video,
 			}, nil
-                }
-        }
+		}
+	}
 	go c.collectArchiveLiveChatFromYoutube(video.ChannelId, video.VideoId)
 	status.Code = pb.Code_SUCCESS
 	status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
-	return &pb.StartCollectionArchiveLiveChatResponse {
+	return &pb.StartCollectionArchiveLiveChatResponse{
 		Status: status,
-		Video: video,
+		Video:  video,
 	}, nil
 }
 
@@ -545,46 +542,46 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 	if progress {
 		status.Code = pb.Code_IN_PROGRESS
 		status.Message = fmt.Sprintf("be in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
-		return &pb.GetArchiveLiveChatResponse {
-			Status: status,
+		return &pb.GetArchiveLiveChatResponse{
+			Status:                  status,
 			ArchiveLiveChatMessages: nil,
 		}, nil
 	}
-	archiveLiveChatMessages, err :=  c.dbOperator.GetArchiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
+	archiveLiveChatMessages, err := c.dbOperator.GetArchiveLiveChatMessagesByVideoIdAndToken(request.VideoId, request.Offset, request.Count)
 	if err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v, offset = %v, count = %v)", err, request.VideoId, request.Offset, request.Count)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)
-		return &pb.GetArchiveLiveChatResponse {
-			Status: status,
+		return &pb.GetArchiveLiveChatResponse{
+			Status:                  status,
 			ArchiveLiveChatMessages: nil,
 		}, nil
 	}
 	status.Code = pb.Code_SUCCESS
-	status.Message = fmt.Sprintf("success (videoId = %v, offset = %v, count)", request.VideoId, request.Offset, request.Count)
-	return &pb.GetArchiveLiveChatResponse {
-		Status: status,
+	status.Message = fmt.Sprintf("success (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
+	return &pb.GetArchiveLiveChatResponse{
+		Status:                  status,
 		ArchiveLiveChatMessages: archiveLiveChatMessages,
 	}, nil
 }
 
-func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiveChatParams) {
-        subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams {
-                videoId: videoId,
-                subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
-        }
-	c.subscribeActiveLiveChatCh <-subscribeActiveLiveChatParams
+func (c *Collector) SubscribeActiveLiveChat(videoId string) *subscribeActiveLiveChatParams {
+	subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams{
+		videoId:      videoId,
+		subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
+	}
+	c.subscribeActiveLiveChatCh <- subscribeActiveLiveChatParams
 	return subscribeActiveLiveChatParams
 }
 
 func (c *Collector) UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
-	c.unsubscribeActiveLiveChatCh <-subscribeActiveLiveChatParams;
+	c.unsubscribeActiveLiveChatCh <- subscribeActiveLiveChatParams
 }
 
 func (c *Collector) publisher() {
 	activeLiveChatSubscribers := make(map[string]map[chan *pb.PollActiveLiveChatResponse]bool)
 	for {
-                select {
+		select {
 		case publishActiveLiveChatMessagesParams := <-c.publishActiveLiveChatCh:
 			err := publishActiveLiveChatMessagesParams.err
 			videoId := publishActiveLiveChatMessagesParams.videoId
@@ -597,17 +594,17 @@ func (c *Collector) publisher() {
 				break
 			}
 			if err != nil {
-				for subscriberCh, _ := range videoSubscribers {
+				for subscriberCh := range videoSubscribers {
 					delete(videoSubscribers, subscriberCh)
 					close(subscriberCh)
 				}
 				delete(activeLiveChatSubscribers, videoId)
 				break
 			}
-			for subscriberCh, _ := range videoSubscribers {
-				subscriberCh <-&pb.PollActiveLiveChatResponse {
+			for subscriberCh := range videoSubscribers {
+				subscriberCh <- &pb.PollActiveLiveChatResponse{
 					Status: &pb.Status{
-						Code: pb.Code_SUCCESS,
+						Code:    pb.Code_SUCCESS,
 						Message: fmt.Sprintf("success (vidoeId = %v)", videoId),
 					},
 					ActiveLiveChatMessages: activeLiveChatMessages,
@@ -644,15 +641,15 @@ func (c *Collector) publisher() {
 			if len(videoSubscribers) == 0 {
 				delete(activeLiveChatSubscribers, videoId)
 			}
-                case <-c.publisherFinishRequestCh:
-                        goto LAST
-                }
+		case <-c.publisherFinishRequestCh:
+			goto LAST
+		}
 	}
 LAST:
 	close(c.publisherFinishResponseCh)
 }
 
-func (c *Collector) Start() (error) {
+func (c *Collector) Start() error {
 	if err := c.dbOperator.Open(); err != nil {
 		return fmt.Errorf("can not start Collector: %w", err)
 	}
@@ -662,14 +659,14 @@ func (c *Collector) Start() (error) {
 
 func (c *Collector) Stop() {
 	close(c.publisherFinishRequestCh)
-        <-c.publisherFinishResponseCh
+	<-c.publisherFinishResponseCh
 }
 
 func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Collector, error) {
 	baseOpts := defaultOptions()
-        for _, opt := range opts {
-                opt(baseOpts)
-        }
+	for _, opt := range opts {
+		opt(baseOpts)
+	}
 	if len(apiKeys) > 0 {
 		return nil, fmt.Errorf("no api key")
 	}
@@ -679,20 +676,19 @@ func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Colle
 		return nil, fmt.Errorf("can not create database operator: %w", err)
 	}
 	ythVerboseOpt := youtubehelper.Verbose(baseOpts.verbose)
-	return &Collector {
-		verbose: baseOpts.verbose,
-		dbOperator: databaseOperator,
-		requestedVideoForActiveLiveChatMutex: new(sync.Mutex),
-		requestedVideoForActiveLiveChat: make(map[string]bool),
+	return &Collector{
+		verbose:                               baseOpts.verbose,
+		dbOperator:                            databaseOperator,
+		requestedVideoForActiveLiveChatMutex:  new(sync.Mutex),
+		requestedVideoForActiveLiveChat:       make(map[string]bool),
 		requestedVideoForArchiveLiveChatMutex: new(sync.Mutex),
-		requestedVideoForArchiveLiveChat: make(map[string]bool),
-		publishActiveLiveChatCh: make(chan *publishActiveLiveChatMessagesParams),
-		subscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
-		unsubscribeActiveLiveChatCh: make(chan *subscribeActiveLiveChatParams),
-		publisherFinishRequestCh: make(chan int),
-		publisherFinishResponseCh: make(chan int),
-		activeLiveChatCollector: youtubehelper.NewActiveLiveChatCollector(apiKeys[0], ythVerboseOpt),
-		archiveLiveChatCollector: youtubehelper.NewArchiveLiveChatCollector(ythVerboseOpt),
-
+		requestedVideoForArchiveLiveChat:      make(map[string]bool),
+		publishActiveLiveChatCh:               make(chan *publishActiveLiveChatMessagesParams),
+		subscribeActiveLiveChatCh:             make(chan *subscribeActiveLiveChatParams),
+		unsubscribeActiveLiveChatCh:           make(chan *subscribeActiveLiveChatParams),
+		publisherFinishRequestCh:              make(chan int),
+		publisherFinishResponseCh:             make(chan int),
+		activeLiveChatCollector:               youtubehelper.NewActiveLiveChatCollector(apiKeys[0], ythVerboseOpt),
+		archiveLiveChatCollector:              youtubehelper.NewArchiveLiveChatCollector(ythVerboseOpt),
 	}, nil
 }
