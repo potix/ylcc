@@ -51,13 +51,12 @@ func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *p
 	messages = append(messages, activeLiveChatMessage)
 }
 
-func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) []string {
+func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, error) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		activeLiveChatMessages = make([]*pb.ActiveLiveChatMessage, 0, 5000)
-		p.videoWordCloudMessages[videoId] = activeLiveChatMessages
+		return nil, fmt.Errorf("no word cloud messages (videoId = %v)", videoId)
 	}
 	messages := make([]string, 0, len(activeLiveChatMessages))
 	for _, activeLiveChatMessage := range activeLiveChatMessages {
@@ -81,7 +80,7 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) []str
 
 		messages = append(messages, activeLiveChatMessage.DisplayMessage)
 	}
-	return messages
+	return messages, nil
 }
 
 func (p *Processor) deleteWordCloudMessages(videoId string) {
@@ -134,12 +133,50 @@ func (p *Processor) storeWordCloudMessages(videoId string) {
 }
 
 func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
+	status := new(pb.Status)
+	getVideoRequest := &pb.GetVideoRequest{
+		VideoId: request.VideoId,
+	}
+	getVideoResponse, err := p.collector.GetVideo(getVideoRequest)
+	if err != nil {
+		status.Code = pb.Code_INTERNAL_ERROR
+		status.Message = fmt.Sprintf("can not get video (videoId = %v): %v", request.VideoId, err)
+		return &pb.GetWordCloudResponse{
+			Status:   status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
+	}
+	if getVideoResponse.Status.Code != pb.Code_SUCCESS {
+		return &pb.GetWordCloudResponse{
+			Status:   getVideoResponse.Status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
+	}
+	if getVideoResponse.Video.ActiveLiveChatId == "" {
+		status.Code = pb.Code_NOT_FOUND
+                status.Message = fmt.Sprintf("not live video (videoId = %v)", request.VideoId)
+                return &pb.GetWordCloudResponse{
+                        Status: status,
+			MimeType: "",
+			Data:     nil,
+                }, nil
+	}
 	ok := p.registerVideoWordCloudMutex(request.VideoId)
 	if ok {
 		go p.storeWordCloudMessages(request.VideoId)
-
 	}
-	messages := p.getWordCloudMessages(request.VideoId, request.Target)
+	messages, err := p.getWordCloudMessages(request.VideoId, request.Target)
+	if err != nil  {
+		status.Code = pb.Code_IN_PROGRESS
+		status.Message = fmt.Sprintf("collecting for word cloud messages is in progress (videoId = %v): %v", request.VideoId, err)
+		return &pb.GetWordCloudResponse{
+			Status:   status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
+	}
 	verboseOpt := counter.Verbose(p.verbose)
 	wordCounter := counter.NewWordCounter(p.mecabrc, verboseOpt)
 	for _, message := range messages {
@@ -154,7 +191,6 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	)
 	img := wordCound.Draw()
 	buf := new(bytes.Buffer)
-	status := new(pb.Status)
 	if err := png.Encode(buf, img); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("can not create word cloud image (videoId = %v)", request.VideoId)

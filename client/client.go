@@ -170,7 +170,7 @@ func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, coun
 		return false, false, err
 	}
 	if response.Status.Code == pb.Code_IN_PROGRESS {
-		return false, true, err
+		return false, true, nil
 	}
 	if response.Status.Code != pb.Code_SUCCESS {
 		fmt.Printf("%v", response.Status.Message)
@@ -192,10 +192,27 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 		ok, retry, err := getArchiveLiveChat(client, videoId, offset, count)
 		if err != nil {
 			fmt.Printf("%v", err)
+			return
 		}
 		if retry {
 			time.Sleep(5 * time.Second)
 			continue
+		}
+		if !ok {
+			break
+		}
+		offset += count
+	}
+}
+
+
+
+func wordCloudLoop(client pb.YlccClient, videoId string) {
+	for {
+		ok, retry, err := getWordCloud(client, videoId)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return
 		}
 		if !ok {
 			break
@@ -234,5 +251,8 @@ func main() {
 		getVideo(client, videoId)
 		startCollectionArchiveLiveChat(client, videoId)
 		getArchiveLiveChatLoop(client, videoId)
+	case "wordCloud":
+		getVideo(client, videoId)
+		getWordCloudLoop(client, videoId)
 	}
 }
