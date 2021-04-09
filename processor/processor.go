@@ -161,7 +161,7 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*GetWordCloud
                 return &pb.GetVideoResponse {
                         Status: status,
                         MimeType: "",
-			Data: nil
+			Data: nil,
                 }, nil
 	}
 	status.Code = pb.Code_SUCCESS
@@ -169,7 +169,7 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*GetWordCloud
         return &pb.GetVideoResponse {
 		Status: status,
 		MimeType: "image/png",
-		Data: buf.Bytes()
+		Data: buf.Bytes(),
 	}, nil
 }
 

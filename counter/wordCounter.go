@@ -24,12 +24,13 @@ func Verbose(verbose bool) Option {
 	}
 }
 
-type wordCounter struct {
+type WordCounter struct {
 	verbose bool
-	result map[string]int
+	mecabrc string
+	result  map[string]int
 }
 
-func (w *wordCounter) isAlphabets(s string) bool {
+func (w *WordCounter) isAlphabets(s string) bool {
 	for _, r := range s {
 		if !((r  >= 'a' && r <= 'z') || (r >= 'A' && r  <= 'Z') || r == '\'' || r == '.' || r == ',' || r == '?' || r == '!' || r == ' ') {
 			return false
@@ -38,7 +39,7 @@ func (w *wordCounter) isAlphabets(s string) bool {
 	return true
 }
 
-func (w *wordCounter) addWords(words []string) {
+func (w *WordCounter) addWords(words []string) {
 	for _, word := range words {
 		_, ok := w.result[word]
 		if !ok {
@@ -49,7 +50,7 @@ func (w *wordCounter) addWords(words []string) {
 	}
 }
 
-func (w *wordCounter) ParseNonJapanease(text string) {
+func (w *WordCounter) parseNonJapanease(text string) {
 	words := strings.Split(text, " ")
 	for i := 0; i < len(words); i++ {
 		words[i] = strings.Trim(words[i], ",.?!")
@@ -57,10 +58,10 @@ func (w *wordCounter) ParseNonJapanease(text string) {
 	w.addWords(words)
 }
 
-func (w *wordCounter) CountJavanease(text string) {
-	options := make(map[string]string)
-	options["rcfile"] = w.mecabrc
-	tagger, err := mecab.New(options)
+func (w *WordCounter) parseJapanease(text string) {
+	opts := make(map[string]string)
+	opts["rcfile"] = w.mecabrc
+	tagger, err := mecab.New(opts)
 	if err != nil {
 		return
 	}
@@ -97,25 +98,26 @@ func (w *wordCounter) CountJavanease(text string) {
 	w.addWords(words)
 }
 
-func (w *wordCounter) Count(text string) {
-	if IsAlphabets(text) {
-		w.CountNonJapanease(text)
+func (w *WordCounter) Count(text string) {
+	if w.isAlphabets(text) {
+		w.parseNonJapanease(text)
 	} else {
-		w.CountJapanease(text)
+		w.parseJapanease(text)
 	}
 }
 
-func (w *wordCounter) Result() (map[string]int) {
+func (w *WordCounter) Result() (map[string]int) {
 	return w.result
 }
 
-func NewWordCounter(mecabrc string, opts ...Option) {
+func NewWordCounter(mecabrc string, opts ...Option) (*WordCounter) {
 	baseOpts := defaultOptions()
         for _, opt := range opts {
                 opt(baseOpts)
         }
-	return &wordCounter {
+	return &WordCounter {
 		verbose: baseOpts.verbose,
+		mecabrc: mecabrc,
 		result: make(map[string]int),
 	}
 }
