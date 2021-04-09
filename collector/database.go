@@ -165,7 +165,7 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages [
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				log.Printf("can not rollback of activeLiveChatMessage: %v", err)
+				log.Fatal("can not rollback of activeLiveChatMessage: %v", err)
 			}
 			panic(p)
 		}
@@ -218,10 +218,16 @@ func (d *DatabaseOperator) UpdateActiveLiveChatMessages(activeLiveChatMessages [
 			nowUnix,
 		)
 		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return fmt.Errorf("can not rollback of activeLiveChatMessage: %w", err)
+			}
 			return fmt.Errorf("can not insert activeLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return fmt.Errorf("can not rollback of activeLiveChatMessage: %w", err)
+			}
 			return fmt.Errorf("can not get insert id of activeLiveChatMessage: %w", err)
 		}
 		if d.verbose {
@@ -307,7 +313,7 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 	defer func() {
 		if p := recover(); p != nil {
 			if err := tx.Rollback(); err != nil {
-				log.Printf("can not rollback of archiveLiveChatMessage: %v", err)
+				log.Fatal("can not rollback of archiveLiveChatMessage: %v", err)
 			}
 			panic(p)
 		}
@@ -350,10 +356,16 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 			nowUnix,
 		)
 		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return fmt.Errorf("can not rollback of archiveLiveChatMessage: %v", err)
+			}
 			return fmt.Errorf("can not insert archiveLiveChatMessage: %w", err)
 		}
 		id, err := res.LastInsertId()
 		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				return fmt.Errorf("can not rollback of archiveLiveChatMessage: %v", err)
+			}
 			return fmt.Errorf("can not get insert id of archiveLiveChatMessage: %w", err)
 		}
 		if d.verbose {
