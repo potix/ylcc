@@ -14,6 +14,11 @@ import (
         "github.com/potix/ylcc/server"
 )
 
+type ylccProcessorConfig struct {
+        Mecabrc string `toml:"mecabrc"`
+	Font    string `toml:"font"`
+}
+
 type ylccCollectorConfig struct {
         ApiKeyFile   string `toml:"apiKeyFile"`
 	DatabasePath string `toml:"databasePath"`
@@ -31,6 +36,7 @@ type ylccLogConfig struct {
 
 type ylccConfig struct {
 	Verbose   bool                 `toml:"verbose"`
+        Processor *ylccProcessorConfig `toml:"processor"`
         Collector *ylccCollectorConfig `toml:"collector"`
         Server    *ylccServerConfig    `toml:"server"`
         Log       *ylccLogConfig       `toml:"log"`
@@ -80,29 +86,31 @@ func main() {
 	if len(apiKeys) != 1 {
                 log.Fatalf("no api key")
         }
-	verboseOpt := collector.Verbose(conf.Verbose)
+	cVerboseOpt := collector.Verbose(conf.Verbose)
 	newCollector, err := collector.NewCollector(
 		apiKeys,
 		conf.Collector.DatabasePath,
-		verboseOpt,
+		cVerboseOpt,
 	)
 	if err != nil {
 		log.Fatalf("can not create controller: %v", err)
 	}
-	verboseOpt = server.Verbose(conf.Verbose)
-	newProcessor := collector.NewProcessor(
+	pVerboseOpt := processor.Verbose(conf.Verbose)
+	newProcessor := processor.NewProcessor(
 		newCollector,
-		verboseOpt,
+		conf.Processor.Mecabrc,
+		conf.Processor.Font,
+		pVerboseOpt,
 	)
-	verboseOpt := handler.Verbose(conf.Verbose)
+	hVerboseOpt := handler.Verbose(conf.Verbose)
 	newHandler := handler.NewHandler(
 		newProcessor,
 		newCollector,
-		verboseOpt,
+		hVerboseOpt,
 	)
-	verboseOpt = server.Verbose(conf.Verbose)
+	sVerboseOpt := server.Verbose(conf.Verbose)
 	tlsOpt := server.TLS(conf.Server.TlsCertPath, conf.Server.TlsKeyPath)
-        newServer, err := server.NewServer(conf.Server.AddrPort, newHandler, verboseOpt, tlsOpt)
+        newServer, err := server.NewServer(conf.Server.AddrPort, newHandler, sVerboseOpt, tlsOpt)
 	if err != nil {
 		log.Fatalf("can not create server: %v", err)
 	}
