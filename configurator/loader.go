@@ -9,7 +9,7 @@ type loader struct {
 	configFile string
 }
 
-func (l *loader) loadToml(config interface{}) (error) {
+func (l *loader) loadToml(config interface{}) error {
 	_, err := toml.DecodeFile(l.configFile, config)
 	if err != nil {
 		return fmt.Errorf("can not decode config file for toml (%v): %w", l.configFile, err)
@@ -17,7 +17,7 @@ func (l *loader) loadToml(config interface{}) (error) {
 	return nil
 }
 
-func (l *loader)load(config interface{}) (error) {
+func (l *loader) load(config interface{}) error {
 	err := l.loadToml(config)
 	if err != nil {
 		return fmt.Errorf("can not load config file (%v): %w", l.configFile, err)
@@ -25,8 +25,8 @@ func (l *loader)load(config interface{}) (error) {
 	return nil
 }
 
-func newLoader(configFile string) (*loader) {
+func newLoader(configFile string) *loader {
 	return &loader{
-            configFile: configFile,
-        }
+		configFile: configFile,
+	}
 }

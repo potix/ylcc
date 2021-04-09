@@ -1,11 +1,11 @@
 package youtubehelper
 
 type options struct {
-        verbose     bool
+	verbose bool
 }
 
-func defaultOptions() (*options){
-	return &options {
+func defaultOptions() *options {
+	return &options{
 		verbose: false,
 	}
 }
@@ -13,7 +13,7 @@ func defaultOptions() (*options){
 type Option func(*options)
 
 func Verbose(verbose bool) Option {
-        return func(opts *options) {
-                opts.verbose = verbose
-        }
+	return func(opts *options) {
+		opts.verbose = verbose
+	}
 }

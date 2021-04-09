@@ -1,20 +1,20 @@
 package handler
 
 import (
-	"fmt"
 	"context"
-	"google.golang.org/grpc"
-	"github.com/potix/ylcc/processor"
+	"fmt"
 	"github.com/potix/ylcc/collector"
+	"github.com/potix/ylcc/processor"
 	pb "github.com/potix/ylcc/protocol"
+	"google.golang.org/grpc"
 )
 
 type options struct {
-	verbose     bool
+	verbose bool
 }
 
-func defaultOptions() (*options) {
-	return &options {
+func defaultOptions() *options {
+	return &options{
 		verbose: false,
 	}
 }
@@ -34,7 +34,7 @@ type Handler struct {
 	pb.UnimplementedYlccServer
 }
 
-func (h *Handler) Start() (error) {
+func (h *Handler) Start() error {
 	if err := h.collector.Start(); err != nil {
 		return fmt.Errorf("can not start collector %w", err)
 	}
@@ -57,7 +57,7 @@ func (h *Handler) StartCollectionActiveLiveChat(ctx context.Context, request *pb
 	return h.collector.StartCollectionActiveLiveChat(request)
 }
 
-func (h *Handler) PollActiveLiveChat(request *pb.PollActiveLiveChatRequest, server pb.Ylcc_PollActiveLiveChatServer) (error) {
+func (h *Handler) PollActiveLiveChat(request *pb.PollActiveLiveChatRequest, server pb.Ylcc_PollActiveLiveChatServer) error {
 	subscribeActiveLiveChatParams := h.collector.SubscribeActiveLiveChat(request.VideoId)
 	defer h.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
 	for {
@@ -87,15 +87,15 @@ func (h *Handler) GetWordCloud(ctx context.Context, request *pb.GetWordCloudRequ
 	return h.processor.GetWordCloud(request)
 }
 
-func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) (*Handler) {
+func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) *Handler {
 	baseOpts := &options{
 		verbose: false,
 	}
 	for _, opt := range opts {
 		opt(baseOpts)
 	}
-	return &Handler {
-		verbose: baseOpts.verbose,
+	return &Handler{
+		verbose:   baseOpts.verbose,
 		processor: processor,
 		collector: collector,
 	}

@@ -1,26 +1,26 @@
 package youtubehelper
 
 import (
-    "fmt"
-    "net/http"
-    "io"
-    "io/ioutil"
-    "regexp"
-    "encoding/json"
-    "bytes"
-    "net/url"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"regexp"
 )
 
-const(
-        youtubeBaseUrl string = "https://www.youtube.com/watch?v="
-        youtubeLiveChatReplayBaseUrl string = "https://www.youtube.com/live_chat_replay?continuation="
-        youtubeLiveChatApiBaseUrl string = "https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key="
-        userAgent string = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.91 Safari/537.36"
+const (
+	youtubeBaseUrl               string = "https://www.youtube.com/watch?v="
+	youtubeLiveChatReplayBaseUrl string = "https://www.youtube.com/live_chat_replay?continuation="
+	youtubeLiveChatApiBaseUrl    string = "https://www.youtube.com/youtubei/v1/live_chat/get_live_chat_replay?key="
+	userAgent                    string = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.91 Safari/537.36"
 )
 
 type ArchiveLiveChatParams map[string]string
 
-func (a ArchiveLiveChatParams) GetContinuation() (string) {
+func (a ArchiveLiveChatParams) GetContinuation() string {
 	return a["continuation"]
 }
 
@@ -30,30 +30,30 @@ type ArchiveLiveChatCollector struct {
 }
 
 func (a *ArchiveLiveChatCollector) httpRequest(url string, method string, header map[string]string, reqBody io.Reader) ([]byte, error) {
-        req, err := http.NewRequest(method, url, reqBody)
-        if err != nil {
-                return nil, fmt.Errorf("can not create http request (url = %v): %w", url, err)
-        }
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("can not create http request (url = %v): %w", url, err)
+	}
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}
-        client := new(http.Client)
-        resp, err := client.Do(req)
-        if err != nil {
-                return nil, fmt.Errorf("can not request of http (url = %v): %w", url, err)
-        }
-        defer resp.Body.Close()
-        if resp.StatusCode != 200 {
-                return nil, fmt.Errorf("response have unexpected status (url = %v, status = %v)", url, resp.Status)
-        }
-        respBody, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-                return nil, fmt.Errorf("can not read body (url = %v): %w", url, err)
-        }
-        return respBody, nil
+	client := new(http.Client)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("can not request of http (url = %v): %w", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("response have unexpected status (url = %v, status = %v)", url, resp.Status)
+	}
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("can not read body (url = %v): %w", url, err)
+	}
+	return respBody, nil
 }
 
-func (a *ArchiveLiveChatCollector)getParam(re *regexp.Regexp, body []byte) (string, error) {
+func (a *ArchiveLiveChatCollector) getParam(re *regexp.Regexp, body []byte) (string, error) {
 	v := re.FindAllSubmatch(body, -1)
 	if len(v) == 0 {
 		return "", fmt.Errorf("not found parameter '%v'", re.String())
@@ -65,12 +65,12 @@ func (a *ArchiveLiveChatCollector)getParam(re *regexp.Regexp, body []byte) (stri
 }
 
 func (a *ArchiveLiveChatCollector) GetParams(videoId string) (ArchiveLiveChatParams, error) {
-	url := youtubeBaseUrl + videoId
+	ytUrl := youtubeBaseUrl + videoId
 	header := make(map[string]string)
 	header["User-Agent"] = userAgent
-	body, err := a.httpRequest(url, "GET", header, nil)
+	body, err := a.httpRequest(ytUrl, "GET", header, nil)
 	if err != nil {
-		return nil, fmt.Errorf("can not get video page (url = %v,  heade = %+v): %v", url, header, err)
+		return nil, fmt.Errorf("can not get video page (url = %v,  heade = %+v): %v", ytUrl, header, err)
 	}
 	params := make(map[string]string)
 	params["offsetMs"] = "0"
@@ -85,37 +85,37 @@ func (a *ArchiveLiveChatCollector) GetParams(videoId string) (ArchiveLiveChatPar
 }
 
 func (a *ArchiveLiveChatCollector) buildRequestBody(params ArchiveLiveChatParams) (*bytes.Buffer, error) {
-        request := &GetLiveChatRequest{}
-        request.Context.Client.Hl = params["hl"]
-        request.Context.Client.Gl = params["gl"]
-        request.Context.Client.RemoteHost = params["remoteHost"]
-        request.Context.Client.DeviceMake = params["deviceMake"]
-        request.Context.Client.DeviceModel = params["deviceModel"]
-        request.Context.Client.VisitorData = params["visitorData"]
-        request.Context.Client.UserAgent = params["userAgent"]
-        request.Context.Client.ClientName = params["clientName"]
-        request.Context.Client.ClientVersion = params["clientVersion"]
-        request.Context.Client.OsName = params["osName"]
-        request.Context.Client.OsVersion = params["osVersion"]
-        request.Context.Client.OriginalURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
-        request.Context.Client.Platform = params["platform"]
-        request.Context.Client.ClientFormFactor = params["clientFormFactor"]
-        request.Context.Client.TimeZone = "Asia/Tokyo"
-        request.Context.Client.BrowserName = params["browserName"]
-        request.Context.Client.BrowserVersion = params["browserVersion"]
-        request.Context.Client.UtcOffsetMinutes = 540
-        request.Context.Client.MainAppWebInfo.GraftURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
-        request.Context.Client.MainAppWebInfo.WebDisplayMode = "WEB_DISPLAY_MODE_BROWSER"
-        request.Context.User.LockedSafetyMode = false
-        request.Context.Request.UseSsl = true
-        request.Continuation = params["continuation"]
-        request.CurrentPlayerState.PlayerOffsetMs = params["offsetMs"]
-        requestBytes, err := json.Marshal(request)
-        if err != nil {
-                return nil, fmt.Errorf("can not convert struct to json: %v", err)
-        }
-        fmt.Printf("%v\n", string(requestBytes))
-        return bytes.NewBuffer(requestBytes), nil
+	request := &GetLiveChatRequest{}
+	request.Context.Client.Hl = params["hl"]
+	request.Context.Client.Gl = params["gl"]
+	request.Context.Client.RemoteHost = params["remoteHost"]
+	request.Context.Client.DeviceMake = params["deviceMake"]
+	request.Context.Client.DeviceModel = params["deviceModel"]
+	request.Context.Client.VisitorData = params["visitorData"]
+	request.Context.Client.UserAgent = params["userAgent"]
+	request.Context.Client.ClientName = params["clientName"]
+	request.Context.Client.ClientVersion = params["clientVersion"]
+	request.Context.Client.OsName = params["osName"]
+	request.Context.Client.OsVersion = params["osVersion"]
+	request.Context.Client.OriginalURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
+	request.Context.Client.Platform = params["platform"]
+	request.Context.Client.ClientFormFactor = params["clientFormFactor"]
+	request.Context.Client.TimeZone = "Asia/Tokyo"
+	request.Context.Client.BrowserName = params["browserName"]
+	request.Context.Client.BrowserVersion = params["browserVersion"]
+	request.Context.Client.UtcOffsetMinutes = 540
+	request.Context.Client.MainAppWebInfo.GraftURL = youtubeLiveChatReplayBaseUrl + url.QueryEscape(params["continuation"])
+	request.Context.Client.MainAppWebInfo.WebDisplayMode = "WEB_DISPLAY_MODE_BROWSER"
+	request.Context.User.LockedSafetyMode = false
+	request.Context.Request.UseSsl = true
+	request.Continuation = params["continuation"]
+	request.CurrentPlayerState.PlayerOffsetMs = params["offsetMs"]
+	requestBytes, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("can not convert struct to json: %v", err)
+	}
+	fmt.Printf("%v\n", string(requestBytes))
+	return bytes.NewBuffer(requestBytes), nil
 }
 
 func (a *ArchiveLiveChatCollector) GetArchiveLiveChat(params ArchiveLiveChatParams) (*GetLiveChatRespose, error) {
@@ -123,13 +123,13 @@ func (a *ArchiveLiveChatCollector) GetArchiveLiveChat(params ArchiveLiveChatPara
 	if err != nil {
 		return nil, fmt.Errorf("can not build request body: %v", err)
 	}
-	url := youtubeLiveChatApiBaseUrl + params["innertubeApiKey"]
+	ytUrl := youtubeLiveChatApiBaseUrl + params["innertubeApiKey"]
 	header := make(map[string]string)
 	header["User-Agent"] = userAgent
 	header["Content-Type"] = "application/json"
-	respBody, err := a.httpRequest(url, "POST", header, reqBody)
+	respBody, err := a.httpRequest(ytUrl, "POST", header, reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("can not get archive live chat (url = %v, header = %+v, request =%v): %v", url, header, string(reqBody.Bytes()), err)
+		return nil, fmt.Errorf("can not get archive live chat (url = %v, header = %+v, request =%v): %v", ytUrl, header, string(reqBody.Bytes()), err)
 	}
 	resp := &GetLiveChatRespose{}
 	if err = json.Unmarshal(respBody, resp); err != nil {
@@ -138,19 +138,19 @@ func (a *ArchiveLiveChatCollector) GetArchiveLiveChat(params ArchiveLiveChatPara
 	return resp, nil
 }
 
-func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetLiveChatRespose) (bool) {
+func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetLiveChatRespose) bool {
 	params["continuation"] = ""
 	for _, c := range resp.ContinuationContents.LiveChatContinuation.Continuations {
-                if c.LiveChatReplayContinuationData.Continuation != ""  {
-                        params["continuation"] = c.LiveChatReplayContinuationData.Continuation
-                }
-        }
-        for i := len(resp.ContinuationContents.LiveChatContinuation.Actions) - 1; i > 0; i-- {
-                if resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec != "" {
-                        params["offsetMs"] = resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec
-                        break
-                }
-        }
+		if c.LiveChatReplayContinuationData.Continuation != "" {
+			params["continuation"] = c.LiveChatReplayContinuationData.Continuation
+		}
+	}
+	for i := len(resp.ContinuationContents.LiveChatContinuation.Actions) - 1; i > 0; i-- {
+		if resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec != "" {
+			params["offsetMs"] = resp.ContinuationContents.LiveChatContinuation.Actions[i].ReplayChatItemAction.VideoOffsetTimeMsec
+			break
+		}
+	}
 	if params["continuation"] == "" {
 		return false
 	} else {
@@ -158,11 +158,11 @@ func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetL
 	}
 }
 
-func NewArchiveLiveChatCollector(opts ...Option) (*ArchiveLiveChatCollector) {
+func NewArchiveLiveChatCollector(opts ...Option) *ArchiveLiveChatCollector {
 	baseOpts := defaultOptions()
-        for _, opt := range opts {
-                opt(baseOpts)
-        }
+	for _, opt := range opts {
+		opt(baseOpts)
+	}
 	res := make(map[string]*regexp.Regexp)
 	res["continuation"] = regexp.MustCompile(`"liveChatRenderer".+?"continuations".+?"reloadContinuationData".+?"continuation"[ ]*:[ ]*"([^"]+)"`)
 	res["visitorData"] = regexp.MustCompile(`"visitorData"[ ]*:[ ]*"([^"]+)"`)
@@ -183,7 +183,7 @@ func NewArchiveLiveChatCollector(opts ...Option) (*ArchiveLiveChatCollector) {
 	res["clientFormFactor"] = regexp.MustCompile(`"clientFormFactor"[ ]*:[ ]*"([^"]+)"`)
 	return &ArchiveLiveChatCollector{
 		verbose: baseOpts.verbose,
-		res: res,
+		res:     res,
 	}
 }
 
@@ -489,4 +489,3 @@ type GetLiveChatRespose struct {
 		} `json:"webResponseContextExtensionData"`
 	} `json:"responseContext"`
 }
-
