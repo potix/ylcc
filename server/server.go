@@ -8,7 +8,27 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// Server is server
+type options struct {
+	verbose     bool
+	tlsCertPath string
+	tlsKeyPath  string
+}
+
+type Option func(*options)
+
+func Verbose(verbose bool) Option {
+	return func(opts *options) {
+		options.verbose = verbose
+	}
+}
+
+func TLS(tlsCertPath string, tlsKeyPath string) Option {
+	return func(opts *options) {
+		options.tlsCertPath = tlsCertPath
+		options.tlsKeyPath = tlsKeyPath
+	}
+}
+
 type Server struct {
 	verbose         bool
 	listen          net.Listener
@@ -16,7 +36,6 @@ type Server struct {
 	handler         Handler
 }
 
-// Handler is handler interface
 type Handler interface {
 	Start() (error)
 	Stop()
@@ -40,23 +59,30 @@ func (s *Server) Stop() {
 	s.handler.Stop()
 }
 
-// NewServer is http server with tls 
-func NewServer(verbose bool, addrPort string, tlsCertPath string, tlsKeyPath string, handler Handler) (*Server, error) {
+func NewServer(addrPort string,  handler Handler, options ...Option) (*Server, error) {
+	opts := &pptions{
+		verbose: false,
+		tlsCertPath: "",
+		tlsKeyPath: "",
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
 	listen, err := net.Listen("tcp", addrPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen (addrPort = %v): %w", addrPort, err)
 	}
 	grpcServer := grpc.NewServer()
-	if tlsCertPath != "" && tlsKeyPath != "" {
-		serverCred, err := credentials.NewServerTLSFromFile(tlsCertPath, tlsKeyPath)
+	if opts.tlsCertPath != "" && opts.tlsKeyPath != "" {
+		serverCred, err := credentials.NewServerTLSFromFile(opts.tlsCertPath, optstlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("can not create server credential (tlsCertPath, tlsKeyPath = %v, $v): %w", opts.tlsCertPath, optstlsKeyPath, err)
 		}
 		grpcServer = grpc.NewServer(grpc.Creds(serverCred))
 	}
 	handler.Register(grpcServer)
 	newServer := &Server{
-		verbose: verbose,
+		verbose: opts.verbose,
 		listen: listen,
 		grpcServer: grpcServer,
 		handler: handler,

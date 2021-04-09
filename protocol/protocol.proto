@@ -31,6 +31,12 @@ enum Code {
 	INTERNAL_ERROR = 4;
 }
 
+enum Target {
+	ALL_USER                = 0;
+	OWNER_MODERATOR_SPONSOR = 1;
+	OWNER_MODERATOR         = 2;
+}
+
 message Status {
 	Code code = 1;
 	string message = 2;
@@ -150,8 +156,19 @@ message ArchiveLiveChatMessage {
 	string continuation = 13;
 }
 
+message Color {
+	int32 r = 1; 
+	int32 g = 2;
+	int32 b = 3;
+	int32 a = 4;
+}
+
 message GetWordCloudRequest {
 	string videoId = 1;
+	Target target = 2;
+	int32  width = 3;
+	int32  height = 4;
+	Color  backgroundColor = 5;
 }
 
 message GetWordCloudResponse {
