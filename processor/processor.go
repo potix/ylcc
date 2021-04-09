@@ -4,6 +4,7 @@ import (
         "fmt"
         "sync"
 	"bytes"
+	"image/png"
         "github.com/psykhi/wordclouds"
         "github.com/potix/ylcc/collector"
         "github.com/potix/ylcc/counter"
@@ -40,18 +41,18 @@ type Processor struct {
 	videoWordCloudMessages      map[string][]*pb.ActiveLiveChatMessage
 }
 
-func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) (*MessageStrage) {
+func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	messages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		messages = make([]*pb.ActiveLiveChatMessages, 0, 5000)
+		messages = make([]*pb.ActiveLiveChatMessage, 0, 5000)
 		p.videoWordCloudMessages[videoId] = messages
 	}
-	messages = append(messages, activeLiveChatMessages)
+	messages = append(messages, activeLiveChatMessage)
 }
 
-func (p *Processor) getWordCloudMessages(videoId string, target pb.Tartget) ([]string) {
+func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
@@ -61,12 +62,12 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Tartget) ([]s
 	}
 	messages := make([]string, 0, len(activeLiveChatMessages))
 	for _, activeLiveChatMessage := range activeLiveChatMessages {
-		if target == OWNER_MODERATOR {
+		if target == pb.Target_OWNER_MODERATOR {
 			if !(activeLiveChatMessage.AuthorIsChatModerator ||
 			     activeLiveChatMessage.AuthorIsChatOwner) {
 				continue
 			}
-		} else if target == OWNER_MODERATOR_SPONSOR {
+		} else if target == pb.Target_OWNER_MODERATOR_SPONSOR {
 			if !(activeLiveChatMessage.AuthorIsChatModerator ||
 			     activeLiveChatMessage.AuthorIsChatOwner ||
 			     activeLiveChatMessage.AuthorIsChatSponsor) {
@@ -95,70 +96,70 @@ func (p *Processor) deleteWordCloudMessages(videoId string) () {
 }
 
 func (p *Processor) registerVideoWordCloudMutex(videoId string) (bool) {
-        c.videoWordCloudMutex.Lock()
-        defer c.videoWordCloudMutex.Unlock()
-        _, ok := c.videoWordCloud[videoId]
+        p.videoWordCloudMutex.Lock()
+        defer p.videoWordCloudMutex.Unlock()
+        _, ok := p.videoWordCloud[videoId]
         if ok {
                 return false
         }
-        c.videoWordCloud[videoId] = true
+        p.videoWordCloud[videoId] = true
         return true
 }
 
 func (p *Processor) unregisterVideoWordCloud(videoId string) {
-        c.videoWordCloudMutex.Lock()
-        defer c.videoWordCloudMutex.Unlock()
-        _, ok := c.videoWordCloud[videoId]
+        p.videoWordCloudMutex.Lock()
+        defer p.videoWordCloudMutex.Unlock()
+        _, ok := p.videoWordCloud[videoId]
         if !ok {
                 return
         }
-        delete(c.videoWordCloud, videoId)
+        delete(p.videoWordCloud, videoId)
 }
 
 func (p *Processor)storeWordCloudMessages(videoId string) {
-        subscribeActiveLiveChatParams := c.collector.subscribeActiveLiveChat(videoId)
-        defer h.collector.unsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
-	close(startedCh)
+        subscribeActiveLiveChatParams := p.collector.subscribeActiveLiveChat(videoId)
+        defer p.collector.unsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
         for {
                 response, ok := <-subscribeActiveLiveChatParams.subscriberCh
                 if !ok {
 			p.deleteWordCloudMessages(videoId)
-                        return nil
+                        return
                 }
 		for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
 			if activeLiveChatMessage.DisplayMessage == ""{
 				continue
 			}
-			p.addWordCloudMessage(videoID, activeLiveChatMessage)
+			p.addWordCloudMessage(videoId, activeLiveChatMessage)
 		}
         }
 }
 
-func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*GetWordCloudResponse, error) {
+func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
 	ok := p.registerVideoWordCloudMutex(request.VideoId)
 	if ok {
 		go p.storeWordCloudMessages(request.VideoId)
 
 	}
 	messages := p.getWordCloudMessages(request.VideoId, request.Target)
-	verboseOpt := counter.Verbose(opts.verbose)
+	verboseOpt := counter.Verbose(p.verbose)
 	wordCounter := counter.NewWordCounter(p.mecabrc, verboseOpt)
 	for _, message := range messages {
 		p.wordCounter.Count(message)
 	}
-	result = p.wordCounter.Result()
+	result := p.wordCounter.Result()
 	wordCound := wordclouds.NewWordcloud(
 		result,
 		wordclouds.FontFile(p.font),
-		request.Height,
-		request.Width,
+		wordclouds.Height(request.Height),
+		wordclouds.Width(request.Width),
 	)
-	img := w.Draw()
+	img := wordCound.Draw()
 	buf := new(bytes.Buffer)
+	status := new(pb.Status)
 	if err := png.Encode(buf, img); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("can not create word cloud image (videoId = %v)", request.VideoId)
-                return &pb.GetVideoResponse {
+                return &pb.GetWordCloudResponse {
                         Status: status,
                         MimeType: "",
 			Data: nil,
@@ -166,26 +167,26 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*GetWordCloud
 	}
 	status.Code = pb.Code_SUCCESS
         status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
-        return &pb.GetVideoResponse {
+        return &pb.GetWordCloudResponse {
 		Status: status,
 		MimeType: "image/png",
 		Data: buf.Bytes(),
 	}, nil
 }
 
-func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Options) (*Processor) {
+func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) (*Processor) {
 	baseOpts := defaultOptions()
         for _, opt := range opts {
                 opt(baseOpts)
         }
 	return &Processor{
-		verbose: baseOpt.verbose,
+		verbose: baseOpts.verbose,
 		collector: collector,
 		mecabrc: mecabrc,
 		font: font,
 		videoWordCloudMutex: new(sync.Mutex),
 		videoWordCloud: make(map[string]bool),
-		videoStoreMessageMutex: new(sync.Mutex),
-		videoStoreMessage: new(map[string][]*pb.ActiveLiveChatMessage),
+		videoWordCloudMessagesMutex: new(sync.Mutex),
+		videoWordCloudMessages: new(map[string][]*pb.ActiveLiveChatMessage),
 	}
 }
