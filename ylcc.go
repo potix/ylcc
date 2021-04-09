@@ -10,6 +10,7 @@ import (
 	"github.com/potix/ylcc/server"
 	"github.com/potix/ylcc/signalutil"
 	"log"
+	"log/syslog"
 )
 
 type ylccProcessorConfig struct {
@@ -70,11 +71,11 @@ func main() {
 		log.Fatalf("can not load config: %v", err)
 	}
 	if conf.Log.UseSyslog {
-		//		logger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "ylcc")
-		//		if err != nil {
-		//			log.Fatalf("can not create syslog: %v", err)
-		//		}
-		//		log.SetOutput(logger)
+		logger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "ylcc")
+		if err != nil {
+			log.Fatalf("can not create syslog: %v", err)
+		}
+		log.SetOutput(logger)
 	}
 	verboseLoadedConfig(&conf)
 	apiKeys, err := configurator.LoadSecretFile(conf.Collector.ApiKeyFile)

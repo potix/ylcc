@@ -361,7 +361,7 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("can not commit of archiveLiveChatMessage: %v", archiveLiveChatMessage.MessageId, id)
+		return fmt.Errorf("can not commit of archiveLiveChatMessage: %v", err)
 	}
 	return nil
 }
