@@ -134,27 +134,62 @@ func (p *Processor) storeWordCloudMessages(videoId string) {
 
 func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
 	status := new(pb.Status)
-	getVideoRequest := &pb.GetVideoRequest{
-		VideoId: request.VideoId,
-	}
-	getVideoResponse, err := p.collector.GetVideo(getVideoRequest)
+	youtubeService, err := p.collector.CreateYoutubeService()
 	if err != nil {
-		status.Code = pb.Code_INTERNAL_ERROR
-		status.Message = fmt.Sprintf("can not get video (videoId = %v): %v", request.VideoId, err)
+                status.Code = pb.Code_INTERNAL_ERROR
+                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		return &pb.GetWordCloudResponse{
 			Status:   status,
 			MimeType: "",
 			Data:     nil,
 		}, nil
-	}
-	if getVideoResponse.Status.Code != pb.Code_SUCCESS {
+        }
+	youtubeVideo, ok, err := p.collector.GetActiveVideoFromYoutube(request.VideoId, youtubeService)
+        if err != nil {
+                status.Code = pb.Code_INTERNAL_ERROR
+                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		return &pb.GetWordCloudResponse{
-			Status:   getVideoResponse.Status,
+			Status:   status,
 			MimeType: "",
 			Data:     nil,
 		}, nil
-	}
-	if getVideoResponse.Video.ActiveLiveChatId == "" {
+        }
+	if !ok {
+                status.Code = pb.Code_NOT_FOUND
+                status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
+		return &pb.GetWordCloudResponse{
+			Status:   status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
+        }
+	video := &pb.Video{
+                VideoId:            youtubeVideo.Id,
+                ChannelId:          youtubeVideo.Snippet.ChannelId,
+                CategoryId:         youtubeVideo.Snippet.CategoryId,
+                Title:              youtubeVideo.Snippet.Title,
+                Description:        youtubeVideo.Snippet.Description,
+                PublishedAt:        youtubeVideo.Snippet.PublishedAt,
+                Duration:           youtubeVideo.ContentDetails.Duration,
+                ActiveLiveChatId:   youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
+                ActualStartTime:    youtubeVideo.LiveStreamingDetails.ActualStartTime,
+                ActualEndTime:      youtubeVideo.LiveStreamingDetails.ActualEndTime,
+                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
+                ScheduledEndTime:   youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
+                PrivacyStatus:      youtubeVideo.Status.PrivacyStatus,
+                UploadStatus:       youtubeVideo.Status.UploadStatus,
+                Embeddable:         youtubeVideo.Status.Embeddable,
+        }
+	if err := p.collector.UpdateVideo(video); err != nil {
+                status.Code = pb.Code_INTERNAL_ERROR
+                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
+		return &pb.GetWordCloudResponse{
+			Status:   status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
+        }
+	if video.ActiveLiveChatId == "" {
 		status.Code = pb.Code_NOT_FOUND
                 status.Message = fmt.Sprintf("not live video (videoId = %v)", request.VideoId)
                 return &pb.GetWordCloudResponse{
@@ -163,8 +198,7 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 			Data:     nil,
                 }, nil
 	}
-	ok := p.registerVideoWordCloudMutex(request.VideoId)
-	if ok {
+	if ok := p.registerVideoWordCloudMutex(request.VideoId); ok {
 		go p.storeWordCloudMessages(request.VideoId)
 	}
 	messages, err := p.getWordCloudMessages(request.VideoId, request.Target)

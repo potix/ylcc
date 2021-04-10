@@ -33,7 +33,9 @@ type YlccClient interface {
 	// アーカイブのライブチャットのメッセージを返す
 	// 収集中はエラーを返す
 	GetArchiveLiveChat(ctx context.Context, in *GetArchiveLiveChatRequest, opts ...grpc.CallOption) (*GetArchiveLiveChatResponse, error)
-	// 配信中のライブチャットのワードクラウドを生成して返す
+	// 配信中のライブチャットのワードクラウドメッセージの収集を開始する
+	StartCollectionWordCloudMessages(ctx context.Context, in *StartCollectionWordCloudMessagesRequest, opts ...grpc.CallOption) (*StartCollectionWordCloudMessagesResponse, error)
+	// 収集中のライブチャットメッセージからword cloudを生成して返す
 	GetWordCloud(ctx context.Context, in *GetWordCloudRequest, opts ...grpc.CallOption) (*GetWordCloudResponse, error)
 }
 
@@ -122,6 +124,15 @@ func (c *ylccClient) GetArchiveLiveChat(ctx context.Context, in *GetArchiveLiveC
 	return out, nil
 }
 
+func (c *ylccClient) StartCollectionWordCloudMessages(ctx context.Context, in *StartCollectionWordCloudMessagesRequest, opts ...grpc.CallOption) (*StartCollectionWordCloudMessagesResponse, error) {
+	out := new(StartCollectionWordCloudMessagesResponse)
+	err := c.cc.Invoke(ctx, "/ylcc/StartCollectionWordCloudMessages", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *ylccClient) GetWordCloud(ctx context.Context, in *GetWordCloudRequest, opts ...grpc.CallOption) (*GetWordCloudResponse, error) {
 	out := new(GetWordCloudResponse)
 	err := c.cc.Invoke(ctx, "/ylcc/GetWordCloud", in, out, opts...)
@@ -150,7 +161,9 @@ type YlccServer interface {
 	// アーカイブのライブチャットのメッセージを返す
 	// 収集中はエラーを返す
 	GetArchiveLiveChat(context.Context, *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error)
-	// 配信中のライブチャットのワードクラウドを生成して返す
+	// 配信中のライブチャットのワードクラウドメッセージの収集を開始する
+	StartCollectionWordCloudMessages(context.Context, *StartCollectionWordCloudMessagesRequest) (*StartCollectionWordCloudMessagesResponse, error)
+	// 収集中のライブチャットメッセージからword cloudを生成して返す
 	GetWordCloud(context.Context, *GetWordCloudRequest) (*GetWordCloudResponse, error)
 	mustEmbedUnimplementedYlccServer()
 }
@@ -176,6 +189,9 @@ func (UnimplementedYlccServer) StartCollectionArchiveLiveChat(context.Context, *
 }
 func (UnimplementedYlccServer) GetArchiveLiveChat(context.Context, *GetArchiveLiveChatRequest) (*GetArchiveLiveChatResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetArchiveLiveChat not implemented")
+}
+func (UnimplementedYlccServer) StartCollectionWordCloudMessages(context.Context, *StartCollectionWordCloudMessagesRequest) (*StartCollectionWordCloudMessagesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartCollectionWordCloudMessages not implemented")
 }
 func (UnimplementedYlccServer) GetWordCloud(context.Context, *GetWordCloudRequest) (*GetWordCloudResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetWordCloud not implemented")
@@ -304,6 +320,24 @@ func _Ylcc_GetArchiveLiveChat_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ylcc_StartCollectionWordCloudMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartCollectionWordCloudMessagesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(YlccServer).StartCollectionWordCloudMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ylcc/StartCollectionWordCloudMessages",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(YlccServer).StartCollectionWordCloudMessages(ctx, req.(*StartCollectionWordCloudMessagesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Ylcc_GetWordCloud_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetWordCloudRequest)
 	if err := dec(in); err != nil {
@@ -348,6 +382,10 @@ var Ylcc_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetArchiveLiveChat",
 			Handler:    _Ylcc_GetArchiveLiveChat_Handler,
+		},
+		{
+			MethodName: "StartCollectionWordCloudMessages",
+			Handler:    _Ylcc_StartCollectionWordCloudMessages_Handler,
 		},
 		{
 			MethodName: "GetWordCloud",

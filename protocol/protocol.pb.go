@@ -1321,6 +1321,108 @@ func (x *ArchiveLiveChatMessage) GetContinuation() string {
 	return ""
 }
 
+type StartCollectionWordCloudMessagesRequest struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	VideoId string `protobuf:"bytes,1,opt,name=videoId,proto3" json:"videoId,omitempty"`
+}
+
+func (x *StartCollectionWordCloudMessagesRequest) Reset() {
+	*x = StartCollectionWordCloudMessagesRequest{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protocol_proto_msgTypes[16]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StartCollectionWordCloudMessagesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartCollectionWordCloudMessagesRequest) ProtoMessage() {}
+
+func (x *StartCollectionWordCloudMessagesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_proto_msgTypes[16]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartCollectionWordCloudMessagesRequest.ProtoReflect.Descriptor instead.
+func (*StartCollectionWordCloudMessagesRequest) Descriptor() ([]byte, []int) {
+	return file_protocol_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *StartCollectionWordCloudMessagesRequest) GetVideoId() string {
+	if x != nil {
+		return x.VideoId
+	}
+	return ""
+}
+
+type StartCollectionWordCloudMessagesResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Status *Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Video  *Video  `protobuf:"bytes,2,opt,name=video,proto3" json:"video,omitempty"`
+}
+
+func (x *StartCollectionWordCloudMessagesResponse) Reset() {
+	*x = StartCollectionWordCloudMessagesResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_protocol_proto_msgTypes[17]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StartCollectionWordCloudMessagesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartCollectionWordCloudMessagesResponse) ProtoMessage() {}
+
+func (x *StartCollectionWordCloudMessagesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_protocol_proto_msgTypes[17]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartCollectionWordCloudMessagesResponse.ProtoReflect.Descriptor instead.
+func (*StartCollectionWordCloudMessagesResponse) Descriptor() ([]byte, []int) {
+	return file_protocol_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *StartCollectionWordCloudMessagesResponse) GetStatus() *Status {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *StartCollectionWordCloudMessagesResponse) GetVideo() *Video {
+	if x != nil {
+		return x.Video
+	}
+	return nil
+}
+
 type Color struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -1335,7 +1437,7 @@ type Color struct {
 func (x *Color) Reset() {
 	*x = Color{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protocol_proto_msgTypes[16]
+		mi := &file_protocol_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1348,7 +1450,7 @@ func (x *Color) String() string {
 func (*Color) ProtoMessage() {}
 
 func (x *Color) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_proto_msgTypes[16]
+	mi := &file_protocol_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1361,7 +1463,7 @@ func (x *Color) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Color.ProtoReflect.Descriptor instead.
 func (*Color) Descriptor() ([]byte, []int) {
-	return file_protocol_proto_rawDescGZIP(), []int{16}
+	return file_protocol_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Color) GetR() int32 {
@@ -1407,7 +1509,7 @@ type GetWordCloudRequest struct {
 func (x *GetWordCloudRequest) Reset() {
 	*x = GetWordCloudRequest{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protocol_proto_msgTypes[17]
+		mi := &file_protocol_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1420,7 +1522,7 @@ func (x *GetWordCloudRequest) String() string {
 func (*GetWordCloudRequest) ProtoMessage() {}
 
 func (x *GetWordCloudRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_proto_msgTypes[17]
+	mi := &file_protocol_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1433,7 +1535,7 @@ func (x *GetWordCloudRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWordCloudRequest.ProtoReflect.Descriptor instead.
 func (*GetWordCloudRequest) Descriptor() ([]byte, []int) {
-	return file_protocol_proto_rawDescGZIP(), []int{17}
+	return file_protocol_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetWordCloudRequest) GetVideoId() string {
@@ -1484,7 +1586,7 @@ type GetWordCloudResponse struct {
 func (x *GetWordCloudResponse) Reset() {
 	*x = GetWordCloudResponse{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_protocol_proto_msgTypes[18]
+		mi := &file_protocol_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1497,7 +1599,7 @@ func (x *GetWordCloudResponse) String() string {
 func (*GetWordCloudResponse) ProtoMessage() {}
 
 func (x *GetWordCloudResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_protocol_proto_msgTypes[18]
+	mi := &file_protocol_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1510,7 +1612,7 @@ func (x *GetWordCloudResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWordCloudResponse.ProtoReflect.Descriptor instead.
 func (*GetWordCloudResponse) Descriptor() ([]byte, []int) {
-	return file_protocol_proto_rawDescGZIP(), []int{18}
+	return file_protocol_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetWordCloudResponse) GetStatus() *Status {
@@ -1726,7 +1828,18 @@ var file_protocol_proto_rawDesc = []byte{
 	0x4f, 0x66, 0x66, 0x73, 0x65, 0x74, 0x54, 0x69, 0x6d, 0x65, 0x4d, 0x73, 0x65, 0x63, 0x12, 0x22,
 	0x0a, 0x0c, 0x63, 0x6f, 0x6e, 0x74, 0x69, 0x6e, 0x75, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x0d,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x0c, 0x63, 0x6f, 0x6e, 0x74, 0x69, 0x6e, 0x75, 0x61, 0x74, 0x69,
-	0x6f, 0x6e, 0x22, 0x3f, 0x0a, 0x05, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x12, 0x0c, 0x0a, 0x01, 0x72,
+	0x6f, 0x6e, 0x22, 0x43, 0x0a, 0x27, 0x53, 0x74, 0x61, 0x72, 0x74, 0x43, 0x6f, 0x6c, 0x6c, 0x65,
+	0x63, 0x74, 0x69, 0x6f, 0x6e, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x4d, 0x65,
+	0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x18, 0x0a,
+	0x07, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x49, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07,
+	0x76, 0x69, 0x64, 0x65, 0x6f, 0x49, 0x64, 0x22, 0x69, 0x0a, 0x28, 0x53, 0x74, 0x61, 0x72, 0x74,
+	0x43, 0x6f, 0x6c, 0x6c, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c,
+	0x6f, 0x75, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x1f, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x07, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x06, 0x73, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x12, 0x1c, 0x0a, 0x05, 0x76, 0x69, 0x64, 0x65, 0x6f, 0x18, 0x02, 0x20,
+	0x01, 0x28, 0x0b, 0x32, 0x06, 0x2e, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x52, 0x05, 0x76, 0x69, 0x64,
+	0x65, 0x6f, 0x22, 0x3f, 0x0a, 0x05, 0x43, 0x6f, 0x6c, 0x6f, 0x72, 0x12, 0x0c, 0x0a, 0x01, 0x72,
 	0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x01, 0x72, 0x12, 0x0c, 0x0a, 0x01, 0x67, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x05, 0x52, 0x01, 0x67, 0x12, 0x0c, 0x0a, 0x01, 0x62, 0x18, 0x03, 0x20, 0x01,
 	0x28, 0x05, 0x52, 0x01, 0x62, 0x12, 0x0c, 0x0a, 0x01, 0x61, 0x18, 0x04, 0x20, 0x01, 0x28, 0x05,
@@ -1758,7 +1871,7 @@ var file_protocol_proto_rawDesc = []byte{
 	0x52, 0x10, 0x00, 0x12, 0x1b, 0x0a, 0x17, 0x4f, 0x57, 0x4e, 0x45, 0x52, 0x5f, 0x4d, 0x4f, 0x44,
 	0x45, 0x52, 0x41, 0x54, 0x4f, 0x52, 0x5f, 0x53, 0x50, 0x4f, 0x4e, 0x53, 0x4f, 0x52, 0x10, 0x01,
 	0x12, 0x13, 0x0a, 0x0f, 0x4f, 0x57, 0x4e, 0x45, 0x52, 0x5f, 0x4d, 0x4f, 0x44, 0x45, 0x52, 0x41,
-	0x54, 0x4f, 0x52, 0x10, 0x02, 0x32, 0xe3, 0x04, 0x0a, 0x04, 0x79, 0x6c, 0x63, 0x63, 0x12, 0x31,
+	0x54, 0x4f, 0x52, 0x10, 0x02, 0x32, 0xde, 0x05, 0x0a, 0x04, 0x79, 0x6c, 0x63, 0x63, 0x12, 0x31,
 	0x0a, 0x08, 0x47, 0x65, 0x74, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x12, 0x10, 0x2e, 0x47, 0x65, 0x74,
 	0x56, 0x69, 0x64, 0x65, 0x6f, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x11, 0x2e, 0x47,
 	0x65, 0x74, 0x56, 0x69, 0x64, 0x65, 0x6f, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
@@ -1792,14 +1905,21 @@ var file_protocol_proto_rawDesc = []byte{
 	0x74, 0x12, 0x1a, 0x2e, 0x47, 0x65, 0x74, 0x41, 0x72, 0x63, 0x68, 0x69, 0x76, 0x65, 0x4c, 0x69,
 	0x76, 0x65, 0x43, 0x68, 0x61, 0x74, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1b, 0x2e,
 	0x47, 0x65, 0x74, 0x41, 0x72, 0x63, 0x68, 0x69, 0x76, 0x65, 0x4c, 0x69, 0x76, 0x65, 0x43, 0x68,
-	0x61, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3d, 0x0a, 0x0c,
-	0x47, 0x65, 0x74, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x12, 0x14, 0x2e, 0x47,
-	0x65, 0x74, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x1a, 0x15, 0x2e, 0x47, 0x65, 0x74, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75,
-	0x64, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x20, 0x5a, 0x1e, 0x67,
-	0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x74, 0x69, 0x78, 0x2f,
-	0x79, 0x6c, 0x63, 0x63, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x61, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x79, 0x0a, 0x20,
+	0x53, 0x74, 0x61, 0x72, 0x74, 0x43, 0x6f, 0x6c, 0x6c, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x57,
+	0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73,
+	0x12, 0x28, 0x2e, 0x53, 0x74, 0x61, 0x72, 0x74, 0x43, 0x6f, 0x6c, 0x6c, 0x65, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61,
+	0x67, 0x65, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x29, 0x2e, 0x53, 0x74, 0x61,
+	0x72, 0x74, 0x43, 0x6f, 0x6c, 0x6c, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x57, 0x6f, 0x72, 0x64,
+	0x43, 0x6c, 0x6f, 0x75, 0x64, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x73, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x12, 0x3d, 0x0a, 0x0c, 0x47, 0x65, 0x74, 0x57, 0x6f,
+	0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x12, 0x14, 0x2e, 0x47, 0x65, 0x74, 0x57, 0x6f, 0x72,
+	0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x15, 0x2e,
+	0x47, 0x65, 0x74, 0x57, 0x6f, 0x72, 0x64, 0x43, 0x6c, 0x6f, 0x75, 0x64, 0x52, 0x65, 0x73, 0x70,
+	0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x20, 0x5a, 0x1e, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62,
+	0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x70, 0x6f, 0x74, 0x69, 0x78, 0x2f, 0x79, 0x6c, 0x63, 0x63, 0x2f,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x6f, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1815,29 +1935,31 @@ func file_protocol_proto_rawDescGZIP() []byte {
 }
 
 var file_protocol_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_protocol_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_protocol_proto_goTypes = []interface{}{
 	(Code)(0),                // 0: Code
 	(Target)(0),              // 1: Target
 	(*Status)(nil),           // 2: Status
 	(*GetVideoRequest)(nil),  // 3: GetVideoRequest
 	(*GetVideoResponse)(nil), // 4: GetVideoResponse
-	(*StartCollectionActiveLiveChatRequest)(nil),   // 5: StartCollectionActiveLiveChatRequest
-	(*StartCollectionActiveLiveChatResponse)(nil),  // 6: StartCollectionActiveLiveChatResponse
-	(*PollActiveLiveChatRequest)(nil),              // 7: PollActiveLiveChatRequest
-	(*PollActiveLiveChatResponse)(nil),             // 8: PollActiveLiveChatResponse
-	(*GetCachedActiveLiveChatRequest)(nil),         // 9: GetCachedActiveLiveChatRequest
-	(*GetCachedActiveLiveChatResponse)(nil),        // 10: GetCachedActiveLiveChatResponse
-	(*StartCollectionArchiveLiveChatRequest)(nil),  // 11: StartCollectionArchiveLiveChatRequest
-	(*StartCollectionArchiveLiveChatResponse)(nil), // 12: StartCollectionArchiveLiveChatResponse
-	(*GetArchiveLiveChatRequest)(nil),              // 13: GetArchiveLiveChatRequest
-	(*GetArchiveLiveChatResponse)(nil),             // 14: GetArchiveLiveChatResponse
-	(*Video)(nil),                                  // 15: Video
-	(*ActiveLiveChatMessage)(nil),                  // 16: ActiveLiveChatMessage
-	(*ArchiveLiveChatMessage)(nil),                 // 17: ArchiveLiveChatMessage
-	(*Color)(nil),                                  // 18: Color
-	(*GetWordCloudRequest)(nil),                    // 19: GetWordCloudRequest
-	(*GetWordCloudResponse)(nil),                   // 20: GetWordCloudResponse
+	(*StartCollectionActiveLiveChatRequest)(nil),     // 5: StartCollectionActiveLiveChatRequest
+	(*StartCollectionActiveLiveChatResponse)(nil),    // 6: StartCollectionActiveLiveChatResponse
+	(*PollActiveLiveChatRequest)(nil),                // 7: PollActiveLiveChatRequest
+	(*PollActiveLiveChatResponse)(nil),               // 8: PollActiveLiveChatResponse
+	(*GetCachedActiveLiveChatRequest)(nil),           // 9: GetCachedActiveLiveChatRequest
+	(*GetCachedActiveLiveChatResponse)(nil),          // 10: GetCachedActiveLiveChatResponse
+	(*StartCollectionArchiveLiveChatRequest)(nil),    // 11: StartCollectionArchiveLiveChatRequest
+	(*StartCollectionArchiveLiveChatResponse)(nil),   // 12: StartCollectionArchiveLiveChatResponse
+	(*GetArchiveLiveChatRequest)(nil),                // 13: GetArchiveLiveChatRequest
+	(*GetArchiveLiveChatResponse)(nil),               // 14: GetArchiveLiveChatResponse
+	(*Video)(nil),                                    // 15: Video
+	(*ActiveLiveChatMessage)(nil),                    // 16: ActiveLiveChatMessage
+	(*ArchiveLiveChatMessage)(nil),                   // 17: ArchiveLiveChatMessage
+	(*StartCollectionWordCloudMessagesRequest)(nil),  // 18: StartCollectionWordCloudMessagesRequest
+	(*StartCollectionWordCloudMessagesResponse)(nil), // 19: StartCollectionWordCloudMessagesResponse
+	(*Color)(nil),                // 20: Color
+	(*GetWordCloudRequest)(nil),  // 21: GetWordCloudRequest
+	(*GetWordCloudResponse)(nil), // 22: GetWordCloudResponse
 }
 var file_protocol_proto_depIdxs = []int32{
 	0,  // 0: Status.code:type_name -> Code
@@ -1853,28 +1975,32 @@ var file_protocol_proto_depIdxs = []int32{
 	15, // 10: StartCollectionArchiveLiveChatResponse.video:type_name -> Video
 	2,  // 11: GetArchiveLiveChatResponse.status:type_name -> Status
 	17, // 12: GetArchiveLiveChatResponse.ArchiveLiveChatMessages:type_name -> ArchiveLiveChatMessage
-	1,  // 13: GetWordCloudRequest.target:type_name -> Target
-	18, // 14: GetWordCloudRequest.backgroundColor:type_name -> Color
-	2,  // 15: GetWordCloudResponse.status:type_name -> Status
-	3,  // 16: ylcc.GetVideo:input_type -> GetVideoRequest
-	5,  // 17: ylcc.StartCollectionActiveLiveChat:input_type -> StartCollectionActiveLiveChatRequest
-	7,  // 18: ylcc.PollActiveLiveChat:input_type -> PollActiveLiveChatRequest
-	9,  // 19: ylcc.GetCachedActiveLiveChat:input_type -> GetCachedActiveLiveChatRequest
-	11, // 20: ylcc.StartCollectionArchiveLiveChat:input_type -> StartCollectionArchiveLiveChatRequest
-	13, // 21: ylcc.GetArchiveLiveChat:input_type -> GetArchiveLiveChatRequest
-	19, // 22: ylcc.GetWordCloud:input_type -> GetWordCloudRequest
-	4,  // 23: ylcc.GetVideo:output_type -> GetVideoResponse
-	6,  // 24: ylcc.StartCollectionActiveLiveChat:output_type -> StartCollectionActiveLiveChatResponse
-	8,  // 25: ylcc.PollActiveLiveChat:output_type -> PollActiveLiveChatResponse
-	10, // 26: ylcc.GetCachedActiveLiveChat:output_type -> GetCachedActiveLiveChatResponse
-	12, // 27: ylcc.StartCollectionArchiveLiveChat:output_type -> StartCollectionArchiveLiveChatResponse
-	14, // 28: ylcc.GetArchiveLiveChat:output_type -> GetArchiveLiveChatResponse
-	20, // 29: ylcc.GetWordCloud:output_type -> GetWordCloudResponse
-	23, // [23:30] is the sub-list for method output_type
-	16, // [16:23] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	2,  // 13: StartCollectionWordCloudMessagesResponse.status:type_name -> Status
+	15, // 14: StartCollectionWordCloudMessagesResponse.video:type_name -> Video
+	1,  // 15: GetWordCloudRequest.target:type_name -> Target
+	20, // 16: GetWordCloudRequest.backgroundColor:type_name -> Color
+	2,  // 17: GetWordCloudResponse.status:type_name -> Status
+	3,  // 18: ylcc.GetVideo:input_type -> GetVideoRequest
+	5,  // 19: ylcc.StartCollectionActiveLiveChat:input_type -> StartCollectionActiveLiveChatRequest
+	7,  // 20: ylcc.PollActiveLiveChat:input_type -> PollActiveLiveChatRequest
+	9,  // 21: ylcc.GetCachedActiveLiveChat:input_type -> GetCachedActiveLiveChatRequest
+	11, // 22: ylcc.StartCollectionArchiveLiveChat:input_type -> StartCollectionArchiveLiveChatRequest
+	13, // 23: ylcc.GetArchiveLiveChat:input_type -> GetArchiveLiveChatRequest
+	18, // 24: ylcc.StartCollectionWordCloudMessages:input_type -> StartCollectionWordCloudMessagesRequest
+	21, // 25: ylcc.GetWordCloud:input_type -> GetWordCloudRequest
+	4,  // 26: ylcc.GetVideo:output_type -> GetVideoResponse
+	6,  // 27: ylcc.StartCollectionActiveLiveChat:output_type -> StartCollectionActiveLiveChatResponse
+	8,  // 28: ylcc.PollActiveLiveChat:output_type -> PollActiveLiveChatResponse
+	10, // 29: ylcc.GetCachedActiveLiveChat:output_type -> GetCachedActiveLiveChatResponse
+	12, // 30: ylcc.StartCollectionArchiveLiveChat:output_type -> StartCollectionArchiveLiveChatResponse
+	14, // 31: ylcc.GetArchiveLiveChat:output_type -> GetArchiveLiveChatResponse
+	19, // 32: ylcc.StartCollectionWordCloudMessages:output_type -> StartCollectionWordCloudMessagesResponse
+	22, // 33: ylcc.GetWordCloud:output_type -> GetWordCloudResponse
+	26, // [26:34] is the sub-list for method output_type
+	18, // [18:26] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_protocol_proto_init() }
@@ -2076,7 +2202,7 @@ func file_protocol_proto_init() {
 			}
 		}
 		file_protocol_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Color); i {
+			switch v := v.(*StartCollectionWordCloudMessagesRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2088,7 +2214,7 @@ func file_protocol_proto_init() {
 			}
 		}
 		file_protocol_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*GetWordCloudRequest); i {
+			switch v := v.(*StartCollectionWordCloudMessagesResponse); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2100,6 +2226,30 @@ func file_protocol_proto_init() {
 			}
 		}
 		file_protocol_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Color); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protocol_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*GetWordCloudRequest); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_protocol_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GetWordCloudResponse); i {
 			case 0:
 				return &v.state
@@ -2118,7 +2268,7 @@ func file_protocol_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_protocol_proto_rawDesc,
 			NumEnums:      2,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
