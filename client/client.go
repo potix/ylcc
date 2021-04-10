@@ -210,7 +210,7 @@ func startCollectionWordCloudMessages(client pb.YlccClient, videoId string) {
 	request := &pb.StartCollectionWordCloudMessagesRequest{
 		VideoId: videoId,
 	}
-	response, err := client.StartWordCloudMessages(ctx, request)
+	response, err := client.StartCollectionWordCloudMessages(ctx, request)
 	if err != nil {
 		fmt.Printf("%v", err)
 		return
