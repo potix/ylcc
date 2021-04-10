@@ -262,7 +262,11 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 		wordclouds.FontFile(p.font),
 		wordclouds.Height(int(request.Height)),
 		wordclouds.Width(int(request.Width)),
-		wordclouds.BackgroundColor(color.Color {
+		wordclouds.BackgroundColor(color.RGBA{
+			R: uint8(request.BackgroundColor.R),
+			G: uint8(request.BackgroundColor.G),
+			B: uint8(request.BackgroundColor.B),
+			A: uint8(request.BackgroundColor.A),
 		}),
 	)
 	img := wordCound.Draw()

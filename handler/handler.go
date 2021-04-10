@@ -83,6 +83,10 @@ func (h *Handler) GetArchiveLiveChat(ctx context.Context, request *pb.GetArchive
 	return h.collector.GetArchiveLiveChat(request)
 }
 
+func (h *Handler) StartCollectionWordCloudMessages(ctx context.Context, request *pb.StartCollectionWordCloudMessagesRequest) (*pb.StartCollectionWordCloudMessagesResponse, error) {
+	return h.processor.StartCollectionWordCloudMessages(request)
+}
+
 func (h *Handler) GetWordCloud(ctx context.Context, request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
 	return h.processor.GetWordCloud(request)
 }
