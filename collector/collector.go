@@ -210,6 +210,18 @@ func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtu
 	}
 }
 
+func (c *Collector) CreateYoutubeService() (*youtube.Service, error) {
+        return c.activeLiveChatCollector.CreateYoutubeService()
+}
+
+func (c *Collector) GetActiveVideoFromYoutube(videoId string, youtubeService *youtube.Service) (*youtube.Video, bool, error) {
+        return c.activeLiveChatCollector.GetVideo(videoId, youtubeService)
+}
+
+func (c *Collector) UpdateVideo(video *pb.Video) (error) {
+	return c.dbOperator.UpdateVideo(video)
+}
+
 func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
 	status := new(pb.Status)
 	video, ok, err := c.dbOperator.GetVideoByVideoId(request.VideoId)
@@ -294,8 +306,7 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 		UploadStatus:       youtubeVideo.Status.UploadStatus,
 		Embeddable:         youtubeVideo.Status.Embeddable,
 	}
-	err = c.dbOperator.UpdateVideo(video)
-	if err != nil {
+	if err := c.dbOperator.UpdateVideo(video); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForActiveLiveChat(request.VideoId)
@@ -484,8 +495,7 @@ func (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionAr
 		UploadStatus:       youtubeVideo.Status.UploadStatus,
 		Embeddable:         youtubeVideo.Status.Embeddable,
 	}
-	err = c.dbOperator.UpdateVideo(video)
-	if err != nil {
+	if err := c.dbOperator.UpdateVideo(video); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
 		status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
 		c.unregisterRequestedVideoForArchiveLiveChat(request.VideoId)

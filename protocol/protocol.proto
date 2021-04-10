@@ -19,7 +19,9 @@ service ylcc {
 	// 収集中はエラーを返す
 	rpc GetArchiveLiveChat (GetArchiveLiveChatRequest) returns (GetArchiveLiveChatResponse) {}
 
-	// 配信中のライブチャットのワードクラウドを生成して返す
+	// 配信中のライブチャットのワードクラウドメッセージの収集を開始する
+	rpc StartCollectionWordCloudMessages (StartCollectionWordCloudMessagesRequest) returns (StartCollectionWordCloudMessagesResponse) {}
+	// 収集中のライブチャットメッセージからword cloudを生成して返す
 	rpc GetWordCloud (GetWordCloudRequest) returns (GetWordCloudResponse) {}
 }
 
@@ -154,6 +156,15 @@ message ArchiveLiveChatMessage {
         string timestampText = 11;
         string videoOffsetTimeMsec = 12;
 	string continuation = 13;
+}
+
+message StartCollectionWordCloudMessagesRequest {
+	string videoId = 1;
+}
+
+message StartCollectionWordCloudMessagesResponse {
+	Status status = 1;
+	Video video = 2;
 }
 
 message Color {

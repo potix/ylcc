@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-const (
-	addrPort = "127.0.0.1:12345"
-)
-
 func getVideo(client pb.YlccClient, videoId string) {
 	ctx, cancel := context.WithTimeout(
 		context.Background(),
@@ -207,25 +203,64 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 
 
 
-func wordCloudLoop(client pb.YlccClient, videoId string) {
+func getWordCloud(client pb.YlccClient, videoId string) (bool, bool, error) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60*time.Second,
+	)
+	defer cancel()
+	request := &pb.GetWordCloudRequest{
+		VideoId: videoId,
+		Target: pb.Target_ALL_USER,
+		Width: 600,
+		Height: 200,
+		BackgroundColor: &pb.Color{
+			R: 255,
+			G: 255,
+			B: 255,
+			A: 0,
+		},
+	}
+	response, err := client.GetWordCloud(ctx, request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return false, false, err
+	}
+	if response.Status.Code == pb.Code_IN_PROGRESS {
+		return false, true, nil
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		fmt.Printf("%v", response.Status.Message)
+		return false, false, fmt.Errorf("%v", response.Status.Message)
+	}
+	fmt.Printf("%v, %v", response.MimeType, response.Data)
+	return true, false, nil
+}
+
+func getWordCloudLoop(client pb.YlccClient, videoId string) {
 	for {
 		ok, retry, err := getWordCloud(client, videoId)
 		if err != nil {
 			fmt.Printf("%v", err)
 			return
 		}
+		if retry {
+			time.Sleep(5 * time.Second)
+			continue
+		}
 		if !ok {
 			break
 		}
-		offset += count
 	}
 }
 
 func main() {
 	var mode string
 	var videoId string
-	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive>")
+	var addrPort string
+	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive | wordCloud>")
 	flag.StringVar(&videoId, "id", "", "<video id>")
+	flag.StringVar(&addrPort, "to", "127.0.0.1:12345", "<video id>")
 	flag.Parse()
 	conn, err := grpc.Dial(
 		addrPort,
@@ -252,7 +287,9 @@ func main() {
 		startCollectionArchiveLiveChat(client, videoId)
 		getArchiveLiveChatLoop(client, videoId)
 	case "wordCloud":
+		fmt.Printf("XXX")
 		getVideo(client, videoId)
+		fmt.Printf("XXX")
 		getWordCloudLoop(client, videoId)
 	}
 }
