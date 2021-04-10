@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"context"
 	"flag"
 	"fmt"
@@ -250,10 +251,18 @@ func getWordCloud(client pb.YlccClient, videoId string) (bool, bool, error) {
 		return false, true, nil
 	}
 	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
 		return false, false, fmt.Errorf("%v", response.Status.Message)
 	}
-	fmt.Printf("%v, %v", response.MimeType, response.Data)
+	file, err := os.Create("./output.png")
+	if err != nil {
+		return false, false, fmt.Errorf("can not create file: %v", err)
+	}
+	defer file.Close()
+	_, err = file.Write(response.Data)
+	if err != nil {
+		return false, false, fmt.Errorf("can not write data to file: %v", err)
+	}
+	fmt.Printf("minetype = %v, length = %v\n", response.MimeType, len(response.Data))
 	return true, false, nil
 }
 
@@ -271,6 +280,7 @@ func getWordCloudLoop(client pb.YlccClient, videoId string) {
 		if !ok {
 			break
 		}
+		time.Sleep(1 * time.Second)
 	}
 }
 

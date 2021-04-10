@@ -3,6 +3,7 @@ package processor
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"github.com/potix/ylcc/collector"
 	"github.com/potix/ylcc/counter"
 	pb "github.com/potix/ylcc/protocol"
@@ -76,12 +77,14 @@ func (p *Processor) unregisterRequestedVideoWordCloud(videoId string) bool {
 func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
-	messages, ok := p.videoWordCloudMessages[videoId]
+	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		messages = make([]*pb.ActiveLiveChatMessage, 0, 5000)
-		p.videoWordCloudMessages[videoId] = messages
+		activeLiveChatMessages = make([]*pb.ActiveLiveChatMessage, 0, 5000)
+		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
+		p.videoWordCloudMessages[videoId] = activeLiveChatMessages
+		return
 	}
-	messages = append(messages, activeLiveChatMessage)
+	activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
 }
 
 func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, bool) {
@@ -89,6 +92,9 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
+		if p.verbose {
+			log.Printf("not found word cloud message (videoId = %v)", videoId)
+		}
 		return nil, false
 	}
 	messages := make([]string, 0, len(activeLiveChatMessages))
@@ -105,13 +111,11 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 				continue
 			}
 		}
-		if activeLiveChatMessage.DisplayMessage == "" {
-			continue
-		}
-
 		// XX TODO 連投防止
-
 		messages = append(messages, activeLiveChatMessage.DisplayMessage)
+	}
+	if p.verbose && len(messages) == 0 {
+		log.Printf("no word cloud messages (videoId = %v)", videoId)
 	}
 	return messages, true
 }
@@ -140,6 +144,9 @@ func (p *Processor) storeWordCloudMessages(videoId string) {
 			if activeLiveChatMessage.DisplayMessage == "" {
 				continue
 			}
+			if p.verbose {
+				log.Printf("add message for word cloud (videoId = %v,  message = %v)", videoId, activeLiveChatMessage.DisplayMessage)
+			}
 			p.addWordCloudMessage(videoId, activeLiveChatMessage)
 		}
 	}
@@ -156,7 +163,10 @@ func (p *Processor) StartCollectionWordCloudMessages(request *pb.StartCollection
 			Video: nil,
 		}, nil
 	}
-	youtubeService, err := p.collector.CreateYoutubeService()
+	startCollectionActiveLiveChatRequest := &pb.StartCollectionActiveLiveChatRequest {
+		VideoId: request.VideoId,
+	}
+	startCollectionActiveLiveChatResponse, err := p.collector.StartCollectionActiveLiveChat(startCollectionActiveLiveChatRequest)
 	if err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
@@ -165,67 +175,20 @@ func (p *Processor) StartCollectionWordCloudMessages(request *pb.StartCollection
 			Status: status,
 			Video: nil,
 		}, nil
-        }
-	youtubeVideo, ok, err := p.collector.GetActiveVideoFromYoutube(request.VideoId, youtubeService)
-        if err != nil {
-                status.Code = pb.Code_INTERNAL_ERROR
-                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
+	}
+	if startCollectionActiveLiveChatResponse.Status.Code != pb.Code_SUCCESS && startCollectionActiveLiveChatResponse.Status.Code != pb.Code_IN_PROGRESS {
 		p.unregisterRequestedVideoWordCloud(request.VideoId)
 		return &pb.StartCollectionWordCloudMessagesResponse{
-			Status: status,
+			Status: startCollectionActiveLiveChatResponse.Status,
 			Video: nil,
 		}, nil
-        }
-	if !ok {
-                status.Code = pb.Code_NOT_FOUND
-                status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
-		p.unregisterRequestedVideoWordCloud(request.VideoId)
-		return &pb.StartCollectionWordCloudMessagesResponse{
-			Status: status,
-			Video: nil,
-		}, nil
-        }
-	video := &pb.Video{
-                VideoId:            youtubeVideo.Id,
-                ChannelId:          youtubeVideo.Snippet.ChannelId,
-                CategoryId:         youtubeVideo.Snippet.CategoryId,
-                Title:              youtubeVideo.Snippet.Title,
-                Description:        youtubeVideo.Snippet.Description,
-                PublishedAt:        youtubeVideo.Snippet.PublishedAt,
-                Duration:           youtubeVideo.ContentDetails.Duration,
-                ActiveLiveChatId:   youtubeVideo.LiveStreamingDetails.ActiveLiveChatId,
-                ActualStartTime:    youtubeVideo.LiveStreamingDetails.ActualStartTime,
-                ActualEndTime:      youtubeVideo.LiveStreamingDetails.ActualEndTime,
-                ScheduledStartTime: youtubeVideo.LiveStreamingDetails.ScheduledStartTime,
-                ScheduledEndTime:   youtubeVideo.LiveStreamingDetails.ScheduledEndTime,
-                PrivacyStatus:      youtubeVideo.Status.PrivacyStatus,
-                UploadStatus:       youtubeVideo.Status.UploadStatus,
-                Embeddable:         youtubeVideo.Status.Embeddable,
-        }
-	if err := p.collector.UpdateVideo(video); err != nil {
-                status.Code = pb.Code_INTERNAL_ERROR
-                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		p.unregisterRequestedVideoWordCloud(request.VideoId)
-		return &pb.StartCollectionWordCloudMessagesResponse{
-			Status: status,
-			Video: nil,
-		}, nil
-        }
-	if video.ActiveLiveChatId == "" {
-		status.Code = pb.Code_NOT_FOUND
-                status.Message = fmt.Sprintf("not live video (videoId = %v)", request.VideoId)
-		p.unregisterRequestedVideoWordCloud(request.VideoId)
-                return &pb.StartCollectionWordCloudMessagesResponse{
-                        Status: status,
-			Video: nil,
-                }, nil
 	}
 	go p.storeWordCloudMessages(request.VideoId)
 	status.Code = pb.Code_SUCCESS
         status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
         return &pb.StartCollectionWordCloudMessagesResponse{
                 Status: status,
-                Video:  video,
+                Video:  startCollectionActiveLiveChatResponse.Video,
         }, nil
 }
 
