@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"container/list"
 	"github.com/potix/ylcc/collector"
 	"github.com/potix/ylcc/counter"
 	pb "github.com/potix/ylcc/protocol"
@@ -36,10 +37,11 @@ type Processor struct {
 	collector                    *collector.Collector
 	mecabrc                      string
 	font                         string
+	wordCloudMessageLimit        int
 	requestedVideoWordCloudMutex *sync.Mutex
 	requestedVideoWordCloud      map[string]bool
 	videoWordCloudMessagesMutex  *sync.Mutex
-	videoWordCloudMessages       map[string][]*pb.ActiveLiveChatMessage
+	videoWordCloudMessages       map[string]*list.List
 }
 
 func (p *Processor) registerRequestedVideoWordCloud(videoId string) bool {
@@ -79,12 +81,15 @@ func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *p
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	_, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, 5000)
-		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
+		activeLiveChatMessages := list.New()
+		activeLiveChatMessages.PushBack(activeLiveChatMessage)
 		p.videoWordCloudMessages[videoId] = activeLiveChatMessages
 		return
 	}
-	p.videoWordCloudMessages[videoId] = append(p.videoWordCloudMessages[videoId], activeLiveChatMessage)
+	if p.videoWordCloudMessages[videoId].Len() > p.wordCloudMessageLimit {
+		p.videoWordCloudMessages[videoId].Remove(p.videoWordCloudMessages[videoId].Front())
+	}
+	p.videoWordCloudMessages[videoId].PushBack(activeLiveChatMessage)
 }
 
 func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, bool) {
@@ -97,8 +102,9 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 		}
 		return nil, false
 	}
-	messages := make([]string, 0, len(activeLiveChatMessages))
-	for _, activeLiveChatMessage := range activeLiveChatMessages {
+	messages := make([]string, 0, activeLiveChatMessages.Len())
+	for e := activeLiveChatMessages.Front(); e != nil; e = e.Next() {
+		activeLiveChatMessage := e.Value.(*pb.ActiveLiveChatMessage)
 		if target == pb.Target_OWNER_MODERATOR {
 			if !(activeLiveChatMessage.AuthorIsChatModerator ||
 				activeLiveChatMessage.AuthorIsChatOwner) {
@@ -217,19 +223,34 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 		wordCounter.Count(message)
 	}
 	result := wordCounter.Result()
+	colors := make([]color.Color, 0, len(request.Colors))
+	for _, c := range request.Colors {
+		colors = append(colors, &color.RGBA{
+			R: uint8(c.R),
+			G: uint8(c.G),
+			B: uint8(c.B),
+			A: uint8(c.A),
+		})
+	}
 	wordCound := wordclouds.NewWordcloud(
 		result,
 		wordclouds.FontFile(p.font),
+		wordclouds.FontMaxSize(int(request.FontMaxSize)),
+		wordclouds.FontMinSize(int(request.FontMinSize)),
 		wordclouds.Height(int(request.Height)),
 		wordclouds.Width(int(request.Width)),
-		wordclouds.BackgroundColor(color.RGBA{
+		wordclouds.Colors(colors),
+		wordclouds.BackgroundColor(&color.RGBA{
 			R: uint8(request.BackgroundColor.R),
 			G: uint8(request.BackgroundColor.G),
 			B: uint8(request.BackgroundColor.B),
 			A: uint8(request.BackgroundColor.A),
 		}),
+		wordclouds.RandomPlacement(false),
 	)
 	img := wordCound.Draw()
+
+
 	buf := new(bytes.Buffer)
 	if err := png.Encode(buf, img); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
@@ -249,7 +270,7 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	}, nil
 }
 
-func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {
+func NewProcessor(collector *collector.Collector, mecabrc string, font string, wordCloudMessageLimit int, opts ...Option) *Processor {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
 		opt(baseOpts)
@@ -259,9 +280,10 @@ func NewProcessor(collector *collector.Collector, mecabrc string, font string, o
 		collector:                    collector,
 		mecabrc:                      mecabrc,
 		font:                         font,
+		wordCloudMessageLimit:        wordCloudMessageLimit,
 		requestedVideoWordCloudMutex: new(sync.Mutex),
 		requestedVideoWordCloud:      make(map[string]bool),
 		videoWordCloudMessagesMutex:  new(sync.Mutex),
-		videoWordCloudMessages:       make(map[string][]*pb.ActiveLiveChatMessage),
+		videoWordCloudMessages:       make(map[string]*list.List),
 	}
 }
