@@ -210,18 +210,6 @@ func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtu
 	}
 }
 
-func (c *Collector) CreateYoutubeService() (*youtube.Service, error) {
-        return c.activeLiveChatCollector.CreateYoutubeService()
-}
-
-func (c *Collector) GetActiveVideoFromYoutube(videoId string, youtubeService *youtube.Service) (*youtube.Video, bool, error) {
-        return c.activeLiveChatCollector.GetVideo(videoId, youtubeService)
-}
-
-func (c *Collector) UpdateVideo(video *pb.Video) (error) {
-	return c.dbOperator.UpdateVideo(video)
-}
-
 func (c *Collector) GetVideo(request *pb.GetVideoRequest) (*pb.GetVideoResponse, error) {
 	status := new(pb.Status)
 	video, ok, err := c.dbOperator.GetVideoByVideoId(request.VideoId)
@@ -626,7 +614,9 @@ func (c *Collector) publisher() {
 			videoSubscribers, ok := activeLiveChatSubscribers[videoId]
 			if !ok {
 				videoSubscribers = make(map[chan *pb.PollActiveLiveChatResponse]bool)
+				videoSubscribers[subscriberCh] = true
 				activeLiveChatSubscribers[videoId] = videoSubscribers
+				break
 			}
 			videoSubscribers[subscriberCh] = true
 		case subscribeActiveLiveChatParams := <-c.unsubscribeActiveLiveChatCh:
