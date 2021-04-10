@@ -168,10 +168,10 @@ message StartCollectionWordCloudMessagesResponse {
 }
 
 message Color {
-	int32 r = 1; 
-	int32 g = 2;
-	int32 b = 3;
-	int32 a = 4;
+	uint32 r = 1; 
+	uint32 g = 2;
+	uint32 b = 3;
+	uint32 a = 4;
 }
 
 message GetWordCloudRequest {

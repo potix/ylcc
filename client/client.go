@@ -201,7 +201,27 @@ func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
 	}
 }
 
-
+func startCollectionWordCloudMessages(client pb.YlccClient, videoId string) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60*time.Second,
+	)
+	defer cancel()
+	request := &pb.StartCollectionWordCloudMessagesRequest{
+		VideoId: videoId,
+	}
+	response, err := client.StartWordCloudMessages(ctx, request)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		fmt.Printf("%v", response.Status.Message)
+		return
+	}
+	fmt.Printf("%+v", response.Video)
+	return
+}
 
 func getWordCloud(client pb.YlccClient, videoId string) (bool, bool, error) {
 	ctx, cancel := context.WithTimeout(
@@ -287,9 +307,8 @@ func main() {
 		startCollectionArchiveLiveChat(client, videoId)
 		getArchiveLiveChatLoop(client, videoId)
 	case "wordCloud":
-		fmt.Printf("XXX")
 		getVideo(client, videoId)
-		fmt.Printf("XXX")
+		startCollectionWordCloudMessages(client, videoId)
 		getWordCloudLoop(client, videoId)
 	}
 }

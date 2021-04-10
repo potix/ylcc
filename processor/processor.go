@@ -7,6 +7,7 @@ import (
 	"github.com/potix/ylcc/counter"
 	pb "github.com/potix/ylcc/protocol"
 	"github.com/psykhi/wordclouds"
+	"image/color"
 	"image/png"
 	"sync"
 )
@@ -30,14 +31,46 @@ func Verbose(verbose bool) Option {
 }
 
 type Processor struct {
-	verbose                     bool
-	collector                   *collector.Collector
-	mecabrc                     string
-	font                        string
-	videoWordCloudMutex         *sync.Mutex
-	videoWordCloud              map[string]bool
-	videoWordCloudMessagesMutex *sync.Mutex
-	videoWordCloudMessages      map[string][]*pb.ActiveLiveChatMessage
+	verbose                      bool
+	collector                    *collector.Collector
+	mecabrc                      string
+	font                         string
+	requestedVideoWordCloudMutex *sync.Mutex
+	requestedVideoWordCloud      map[string]bool
+	videoWordCloudMessagesMutex  *sync.Mutex
+	videoWordCloudMessages       map[string][]*pb.ActiveLiveChatMessage
+}
+
+func (p *Processor) registerRequestedVideoWordCloud(videoId string) bool {
+        p.requestedVideoWordCloudMutex.Lock()
+        defer p.requestedVideoWordCloudMutex.Unlock()
+        _, ok := p.requestedVideoWordCloud[videoId]
+        if ok {
+                return false
+        }
+        p.requestedVideoWordCloud[videoId] = true
+        return true
+}
+
+func (p *Processor) checkRequestedVideoWordCloud(videoId string) bool {
+        p.requestedVideoWordCloudMutex.Lock()
+        defer p.requestedVideoWordCloudMutex.Unlock()
+        _, ok := p.requestedVideoWordCloud[videoId]
+        if ok {
+                return true
+        }
+        return false
+}
+
+func (p *Processor) unregisterRequestedVideoWordCloud(videoId string) bool {
+        p.requestedVideoWordCloudMutex.Lock()
+        defer p.requestedVideoWordCloudMutex.Unlock()
+        _, ok := p.requestedVideoWordCloud[videoId]
+        if !ok {
+                return false
+        }
+        delete(p.requestedVideoWordCloud, videoId)
+        return true
 }
 
 func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) {
@@ -51,12 +84,12 @@ func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *p
 	messages = append(messages, activeLiveChatMessage)
 }
 
-func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, error) {
+func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, bool) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		return nil, fmt.Errorf("no word cloud messages (videoId = %v)", videoId)
+		return nil, false
 	}
 	messages := make([]string, 0, len(activeLiveChatMessages))
 	for _, activeLiveChatMessage := range activeLiveChatMessages {
@@ -80,7 +113,7 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 
 		messages = append(messages, activeLiveChatMessage.DisplayMessage)
 	}
-	return messages, nil
+	return messages, true
 }
 
 func (p *Processor) deleteWordCloudMessages(videoId string) {
@@ -93,27 +126,6 @@ func (p *Processor) deleteWordCloudMessages(videoId string) {
 	delete(p.videoWordCloudMessages, videoId)
 }
 
-func (p *Processor) registerVideoWordCloudMutex(videoId string) bool {
-	p.videoWordCloudMutex.Lock()
-	defer p.videoWordCloudMutex.Unlock()
-	_, ok := p.videoWordCloud[videoId]
-	if ok {
-		return false
-	}
-	p.videoWordCloud[videoId] = true
-	return true
-}
-
-func (p *Processor) unregisterVideoWordCloud(videoId string) {
-	p.videoWordCloudMutex.Lock()
-	defer p.videoWordCloudMutex.Unlock()
-	_, ok := p.videoWordCloud[videoId]
-	if !ok {
-		return
-	}
-	delete(p.videoWordCloud, videoId)
-}
-
 func (p *Processor) storeWordCloudMessages(videoId string) {
 	subscribeActiveLiveChatParams := p.collector.SubscribeActiveLiveChat(videoId)
 	defer p.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
@@ -121,6 +133,7 @@ func (p *Processor) storeWordCloudMessages(videoId string) {
 		response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh()
 		if !ok {
 			p.deleteWordCloudMessages(videoId)
+			p.unregisterRequestedVideoWordCloud(videoId)
 			return
 		}
 		for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
@@ -132,35 +145,44 @@ func (p *Processor) storeWordCloudMessages(videoId string) {
 	}
 }
 
-func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
+func (p *Processor) StartCollectionWordCloudMessages(request *pb.StartCollectionWordCloudMessagesRequest) (*pb.StartCollectionWordCloudMessagesResponse, error) {
 	status := new(pb.Status)
+	ok := p.registerRequestedVideoWordCloud(request.VideoId)
+	if !ok {
+		status.Code = pb.Code_IN_PROGRESS
+		status.Message = fmt.Sprintf("collecting for word cloud messages is in progress (videoId = %v)", request.VideoId)
+		return &pb.StartCollectionWordCloudMessagesResponse{
+			Status: status,
+			Video: nil,
+		}, nil
+	}
 	youtubeService, err := p.collector.CreateYoutubeService()
 	if err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.GetWordCloudResponse{
-			Status:   status,
-			MimeType: "",
-			Data:     nil,
+		p.unregisterRequestedVideoWordCloud(request.VideoId)
+		return &pb.StartCollectionWordCloudMessagesResponse{
+			Status: status,
+			Video: nil,
 		}, nil
         }
 	youtubeVideo, ok, err := p.collector.GetActiveVideoFromYoutube(request.VideoId, youtubeService)
         if err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.GetWordCloudResponse{
-			Status:   status,
-			MimeType: "",
-			Data:     nil,
+		p.unregisterRequestedVideoWordCloud(request.VideoId)
+		return &pb.StartCollectionWordCloudMessagesResponse{
+			Status: status,
+			Video: nil,
 		}, nil
         }
 	if !ok {
                 status.Code = pb.Code_NOT_FOUND
                 status.Message = fmt.Sprintf("not found videoId (videoId = %v)", request.VideoId)
-		return &pb.GetWordCloudResponse{
-			Status:   status,
-			MimeType: "",
-			Data:     nil,
+		p.unregisterRequestedVideoWordCloud(request.VideoId)
+		return &pb.StartCollectionWordCloudMessagesResponse{
+			Status: status,
+			Video: nil,
 		}, nil
         }
 	video := &pb.Video{
@@ -183,28 +205,46 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	if err := p.collector.UpdateVideo(video); err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.GetWordCloudResponse{
-			Status:   status,
-			MimeType: "",
-			Data:     nil,
+		p.unregisterRequestedVideoWordCloud(request.VideoId)
+		return &pb.StartCollectionWordCloudMessagesResponse{
+			Status: status,
+			Video: nil,
 		}, nil
         }
 	if video.ActiveLiveChatId == "" {
 		status.Code = pb.Code_NOT_FOUND
                 status.Message = fmt.Sprintf("not live video (videoId = %v)", request.VideoId)
-                return &pb.GetWordCloudResponse{
+		p.unregisterRequestedVideoWordCloud(request.VideoId)
+                return &pb.StartCollectionWordCloudMessagesResponse{
                         Status: status,
-			MimeType: "",
-			Data:     nil,
+			Video: nil,
                 }, nil
 	}
-	if ok := p.registerVideoWordCloudMutex(request.VideoId); ok {
-		go p.storeWordCloudMessages(request.VideoId)
+	go p.storeWordCloudMessages(request.VideoId)
+	status.Code = pb.Code_SUCCESS
+        status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
+        return &pb.StartCollectionWordCloudMessagesResponse{
+                Status: status,
+                Video:  video,
+        }, nil
+}
+
+func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCloudResponse, error) {
+	status := new(pb.Status)
+	progress := p.checkRequestedVideoWordCloud(request.VideoId)
+	if !progress {
+		status.Code = pb.Code_NOT_FOUND
+		status.Message = fmt.Sprintf("not found word cloud messages (videoId = %v)", request.VideoId)
+		return &pb.GetWordCloudResponse{
+			Status:   status,
+			MimeType: "",
+			Data:     nil,
+		}, nil
 	}
-	messages, err := p.getWordCloudMessages(request.VideoId, request.Target)
-	if err != nil  {
+	messages, ok := p.getWordCloudMessages(request.VideoId, request.Target)
+	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
-		status.Message = fmt.Sprintf("collecting for word cloud messages is in progress (videoId = %v): %v", request.VideoId, err)
+		status.Message = fmt.Sprintf("not found word cloud messages (videoId = %v)", request.VideoId)
 		return &pb.GetWordCloudResponse{
 			Status:   status,
 			MimeType: "",
@@ -222,6 +262,8 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 		wordclouds.FontFile(p.font),
 		wordclouds.Height(int(request.Height)),
 		wordclouds.Width(int(request.Width)),
+		wordclouds.BackgroundColor(color.Color {
+		}),
 	)
 	img := wordCound.Draw()
 	buf := new(bytes.Buffer)
@@ -249,13 +291,13 @@ func NewProcessor(collector *collector.Collector, mecabrc string, font string, o
 		opt(baseOpts)
 	}
 	return &Processor{
-		verbose:                     baseOpts.verbose,
-		collector:                   collector,
-		mecabrc:                     mecabrc,
-		font:                        font,
-		videoWordCloudMutex:         new(sync.Mutex),
-		videoWordCloud:              make(map[string]bool),
-		videoWordCloudMessagesMutex: new(sync.Mutex),
-		videoWordCloudMessages:      make(map[string][]*pb.ActiveLiveChatMessage),
+		verbose:                      baseOpts.verbose,
+		collector:                    collector,
+		mecabrc:                      mecabrc,
+		font:                         font,
+		requestedVideoWordCloudMutex: new(sync.Mutex),
+		requestedVideoWordCloud:      make(map[string]bool),
+		videoWordCloudMessagesMutex:  new(sync.Mutex),
+		videoWordCloudMessages:       make(map[string][]*pb.ActiveLiveChatMessage),
 	}
 }
