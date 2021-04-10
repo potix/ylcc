@@ -254,7 +254,7 @@ func (c *Collector) StartCollectionActiveLiveChat(request *pb.StartCollectionAct
 	ok := c.registerRequestedVideoForActiveLiveChat(request.VideoId)
 	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
-		status.Message = fmt.Sprintf("be in progress (videoId = %v)", request.VideoId)
+		status.Message = fmt.Sprintf("collecting for active live chat is in progress (videoId = %v)", request.VideoId)
 		return &pb.StartCollectionActiveLiveChatResponse{
 			Status: status,
 			Video:  nil,
@@ -338,7 +338,7 @@ func (c *Collector) GetCachedActiveLiveChat(request *pb.GetCachedActiveLiveChatR
 	progress := c.checkRequestedVideoForActiveLiveChat(request.VideoId)
 	if progress {
 		status.Code = pb.Code_IN_PROGRESS
-		status.Message = fmt.Sprintf("be in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
+		status.Message = fmt.Sprintf("collecting for active live chat is in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
 		return &pb.GetCachedActiveLiveChatResponse{
 			Status:                 status,
 			ActiveLiveChatMessages: nil,
@@ -443,7 +443,7 @@ func (c *Collector) StartCollectionArchiveLiveChat(request *pb.StartCollectionAr
 	ok := c.registerRequestedVideoForArchiveLiveChat(request.VideoId)
 	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
-		status.Message = fmt.Sprintf("be in progress (videoId = %v)", request.VideoId)
+		status.Message = fmt.Sprintf("collecting archive live chat is in progress (videoId = %v)", request.VideoId)
 		return &pb.StartCollectionArchiveLiveChatResponse{
 			Status: status,
 			Video:  nil,
@@ -551,7 +551,7 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 	progress := c.checkRequestedVideoForArchiveLiveChat(request.VideoId)
 	if progress {
 		status.Code = pb.Code_IN_PROGRESS
-		status.Message = fmt.Sprintf("be in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
+		status.Message = fmt.Sprintf("collecting archive live chat is in progress (videoId = %v, offset = %v, count = %v)", request.VideoId, request.Offset, request.Count)
 		return &pb.GetArchiveLiveChatResponse{
 			Status:                  status,
 			ArchiveLiveChatMessages: nil,
