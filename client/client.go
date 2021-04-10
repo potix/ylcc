@@ -230,16 +230,38 @@ func getWordCloud(client pb.YlccClient, videoId string) (bool, bool, error) {
 		60*time.Second,
 	)
 	defer cancel()
+	colors := make([]*pb.Color, 0, 3)
+	colors = append(colors, &pb.Color{
+		R: 234,
+		G: 112,
+		B: 124,
+		A: 255,
+	})
+	colors = append(colors, &pb.Color{
+		R: 133,
+		G: 233,
+		B: 124,
+		A: 255,
+	})
+	colors = append(colors, &pb.Color{
+		R: 122,
+		G: 125,
+		B: 240,
+		A: 255,
+	})
 	request := &pb.GetWordCloudRequest{
 		VideoId: videoId,
 		Target: pb.Target_ALL_USER,
-		Width: 600,
-		Height: 200,
+		FontMaxSize: 64,
+		FontMinSize: 16,
+		Width: 1024,
+		Height: 512,
+		Colors: colors,
 		BackgroundColor: &pb.Color{
 			R: 255,
 			G: 255,
 			B: 255,
-			A: 0,
+			A: 128,
 		},
 	}
 	response, err := client.GetWordCloud(ctx, request)
@@ -280,7 +302,7 @@ func getWordCloudLoop(client pb.YlccClient, videoId string) {
 		if !ok {
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
