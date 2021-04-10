@@ -77,14 +77,14 @@ func (p *Processor) unregisterRequestedVideoWordCloud(videoId string) bool {
 func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
-	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
+	_, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		activeLiveChatMessages = make([]*pb.ActiveLiveChatMessage, 0, 5000)
+		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, 5000)
 		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
 		p.videoWordCloudMessages[videoId] = activeLiveChatMessages
 		return
 	}
-	activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
+	p.videoWordCloudMessages[videoId] = append(p.videoWordCloudMessages[videoId], activeLiveChatMessage)
 }
 
 func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, bool) {
@@ -113,9 +113,6 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 		}
 		// XX TODO 連投防止
 		messages = append(messages, activeLiveChatMessage.DisplayMessage)
-	}
-	if p.verbose && len(messages) == 0 {
-		log.Printf("no word cloud messages (videoId = %v)", videoId)
 	}
 	return messages, true
 }

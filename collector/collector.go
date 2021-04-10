@@ -611,14 +611,14 @@ func (c *Collector) publisher() {
 		case subscribeActiveLiveChatParams := <-c.subscribeActiveLiveChatCh:
 			videoId := subscribeActiveLiveChatParams.videoId
 			subscriberCh := subscribeActiveLiveChatParams.subscriberCh
-			videoSubscribers, ok := activeLiveChatSubscribers[videoId]
+			_, ok := activeLiveChatSubscribers[videoId]
 			if !ok {
-				videoSubscribers = make(map[chan *pb.PollActiveLiveChatResponse]bool)
+				videoSubscribers := make(map[chan *pb.PollActiveLiveChatResponse]bool)
 				videoSubscribers[subscriberCh] = true
 				activeLiveChatSubscribers[videoId] = videoSubscribers
 				break
 			}
-			videoSubscribers[subscriberCh] = true
+			activeLiveChatSubscribers[videoId][subscriberCh] = true
 		case subscribeActiveLiveChatParams := <-c.unsubscribeActiveLiveChatCh:
 			videoId := subscribeActiveLiveChatParams.videoId
 			subscriberCh := subscribeActiveLiveChatParams.subscriberCh
