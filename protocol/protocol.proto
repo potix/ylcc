@@ -1,6 +1,6 @@
 syntax = "proto3";
 option go_package = "github.com/potix/ylcc/protocol";
-option csharp_namespace = "ylccClient";
+option csharp_namespace = "ylccProtocol";
 
 // The ylcc service definition.
 service ylcc {
