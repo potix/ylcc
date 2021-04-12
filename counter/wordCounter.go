@@ -47,6 +47,9 @@ func (w *WordCounter) isAlphabets(s string) bool {
 
 func (w *WordCounter) addWords(words []string) {
 	for _, word := range words {
+		if word == "" {
+			continue
+		}
 		_, ok := w.result[word]
 		if !ok {
 			w.result[word] = 1
