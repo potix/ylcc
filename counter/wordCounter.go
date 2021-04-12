@@ -4,6 +4,8 @@ import (
 	"github.com/shogo82148/go-mecab"
 	"regexp"
 	"strings"
+	"github.com/tmdvs/Go-Emoji-Utils"
+	"golang.org/x/text/unicode/norm"
 )
 
 type options struct {
@@ -28,11 +30,15 @@ type WordCounter struct {
 	verbose bool
 	mecabrc string
 	result  map[string]int
+	splitRe *regexp.Regexp
+	stampRe *regexp.Regexp
+	emojiRe *regexp.Regexp
+	symbolRe *regexp.Regexp
 }
 
 func (w *WordCounter) isAlphabets(s string) bool {
 	for _, r := range s {
-		if !((r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '\'' || r == '.' || r == ',' || r == '?' || r == '!' || r == ' ') {
+		if !((r >= ' ' && r <= '~') || r == '　' || r == '\t') {
 			return false
 		}
 	}
@@ -51,10 +57,7 @@ func (w *WordCounter) addWords(words []string) {
 }
 
 func (w *WordCounter) parseNonJapanease(text string) {
-	words := strings.Split(text, " ")
-	for i := 0; i < len(words); i++ {
-		words[i] = strings.Trim(words[i], ",.?!")
-	}
+	words := w.splitRe.Split(text, -1)
 	w.addWords(words)
 }
 
@@ -76,7 +79,7 @@ func (w *WordCounter) parseJapanease(text string) {
 	words := make([]string, 0, len(text))
 	for _, ln := range lines {
 		es := strings.Split(ln, ",")
-		wt := regexp.MustCompile("[ \t]+").Split(es[0], -1)
+		wt := w.splitRe.Split(es[0], -1)
 		if len(wt) < 2 {
 			word := strings.Join(morphs, "")
 			words = append(words, word)
@@ -99,6 +102,10 @@ func (w *WordCounter) parseJapanease(text string) {
 }
 
 func (w *WordCounter) Count(text string) {
+	text = emoji.RemoveAll(text)
+	text = norm.NFKC.String(text)
+        text = w.stampRe.ReplaceAllString(text, "")
+        text = w.symbolRe.ReplaceAllString(text, "")
 	if w.isAlphabets(text) {
 		w.parseNonJapanease(text)
 	} else {
@@ -119,5 +126,8 @@ func NewWordCounter(mecabrc string, opts ...Option) *WordCounter {
 		verbose: baseOpts.verbose,
 		mecabrc: mecabrc,
 		result:  make(map[string]int),
+		splitRe: regexp.MustCompile(`[ 　\t]+`),
+		stampRe: regexp.MustCompile(`:.+?:`),
+		symbolRe: regexp.MustCompile(`[!！?？,、.。]`),
 	}
 }
