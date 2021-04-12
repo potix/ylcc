@@ -223,6 +223,9 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 		wordCounter.Count(message)
 	}
 	result := wordCounter.Result()
+	if p.verbose {
+		log.Printf("%+v", result)
+	}
 	colors := make([]color.Color, 0, len(request.Colors))
 	for _, c := range request.Colors {
 		colors = append(colors, &color.RGBA{
