@@ -99,7 +99,7 @@ func (h *Handler) UpdateVoteDuration(ctx context.Context, request *pb.UpdateVote
 	return h.processor.UpdateVoteDuration(request)
 }
 
-func (h *Handler) GetVoteResut(ctx context.Context, request *pb.GetVoteResultRequest) (*pb.GetVoteResultResponse, error) {
+func (h *Handler) GetVoteResult(ctx context.Context, request *pb.GetVoteResultRequest) (*pb.GetVoteResultResponse, error) {
 	return h.processor.GetVoteResult(request)
 }
 
