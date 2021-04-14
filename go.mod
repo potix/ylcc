@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/golang/protobuf v1.4.3
+	github.com/google/uuid v1.2.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.6
 	github.com/psykhi/wordclouds v0.0.0-20191111204742-28c4ac381ff3
 	github.com/shogo82148/go-mecab v0.0.5

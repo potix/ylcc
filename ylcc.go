@@ -100,7 +100,6 @@ func main() {
 		newCollector,
 		conf.Processor.Mecabrc,
 		conf.Processor.Font,
-		conf.Processor.WordCloudMessageLimit,
 		pVerboseOpt,
 	)
 	hVerboseOpt := handler.Verbose(conf.Verbose)

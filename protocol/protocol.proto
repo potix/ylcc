@@ -6,24 +6,38 @@ option csharp_namespace = "ylccProtocol";
 service ylcc {
 	// キャッシュされているvideo情報を返す
 	rpc GetVideo (GetVideoRequest) returns (GetVideoResponse) {}
+
 	// 配信中のライブチャットの収集を開始する
 	// 収集したメッセージはキャッシュされる
 	rpc StartCollectionActiveLiveChat (StartCollectionActiveLiveChatRequest) returns (StartCollectionActiveLiveChatResponse) {}
 	// 収集中のライブチャットのメッセージをリアルタイムに返す
 	rpc PollActiveLiveChat (PollActiveLiveChatRequest) returns (stream PollActiveLiveChatResponse) {}
 	// 収集後キャッシュしたライブチャットのメッセージを返す
-	// 収集中はエラーを返す
+	// すでに収集中はエラーを返す
 	rpc GetCachedActiveLiveChat (GetCachedActiveLiveChatRequest) returns (GetCachedActiveLiveChatResponse) {}
+
 	// アーカイブのライブチャットの収集を開始する
+	// すでに収集中はエラーを返す
 	rpc StartCollectionArchiveLiveChat (StartCollectionArchiveLiveChatRequest) returns (StartCollectionArchiveLiveChatResponse) {}
 	// アーカイブのライブチャットのメッセージを返す
-	// 収集中はエラーを返す
+	// 収集完了していない間はエラーを返す
 	rpc GetArchiveLiveChat (GetArchiveLiveChatRequest) returns (GetArchiveLiveChatResponse) {}
 
 	// 配信中のライブチャットのワードクラウドメッセージの収集を開始する
+	// すでに収集中はエラーを返す
 	rpc StartCollectionWordCloudMessages (StartCollectionWordCloudMessagesRequest) returns (StartCollectionWordCloudMessagesResponse) {}
 	// 収集中のライブチャットメッセージからword cloudを生成して返す
 	rpc GetWordCloud (GetWordCloudRequest) returns (GetWordCloudResponse) {}
+
+	// 配信中のライブチャットの収集を始めて投票を開始する
+	// すでに収集中はエラーを返す
+	rpc OpenVote (OpenVoteRequest) returns (OpenVoteResponse) {}
+	// 配信中のライブチャットの投票の時間を変更する
+	rpc UpdateVoteDuration (UpdateVoteDurationRequest) returns (UpdateVoteDurationResponse) {}
+	// 配信中のライブチャットの投票の現在の結果を取得する
+	rpc GetVoteResut (GetVoteResultRequest) returns (GetVoteResultResponse) {}
+	// 配信中のライブチャットの投票を終わる
+	rpc CloseVote (CloseVoteRequest) returns (CloseVoteResponse) {}
 }
 
 enum Code {
@@ -178,12 +192,13 @@ message Color {
 message GetWordCloudRequest {
 	string videoId = 1;
 	Target target = 2;
-	int32  width = 3;
-	int32  height = 4;
-	int32  fontMaxSize = 5;
-	int32  fontMinSize = 6;
-	repeated Color colors = 7;
-	Color  backgroundColor = 8;
+	int32  messageLimit = 3;
+	int32  width = 4;
+	int32  height = 5;
+	int32  fontMaxSize = 6;
+	int32  fontMinSize = 7;
+	repeated Color colors = 8;
+	Color  backgroundColor = 9;
 }
 
 message GetWordCloudResponse {
@@ -191,3 +206,56 @@ message GetWordCloudResponse {
 	string mimeType = 2;
 	bytes  data = 3;
 }
+
+message VoteChoice {
+	string label = 1;
+	string choice = 2;
+}
+
+message OpenVoteRequest {
+	string videoId = 1;
+	Target target = 2;
+	int32 duration = 3;
+	repeated VoteChoice choices = 4;
+}
+
+message OpenVoteResponse {
+	Status status = 1;
+	string VoteId = 2;
+	Video video = 3;
+}
+
+message UpdateVoteDurationRequest {
+	string voteId = 1;
+	int32 duration = 2;
+}
+
+message UpdateVoteDurationResponse {
+	Status status = 1;
+}
+
+message VoteCount {
+	string label = 1;
+	int32 count = 2;
+}
+
+message GetVoteResultRequest {
+	string voteId = 1;
+}
+
+message GetVoteResultResponse {
+	Status status = 1;
+	int32 total = 2;
+	repeated VoteCount counts  = 3;
+}
+
+message CloseVoteRequest {
+	string voteId = 1;
+}
+
+message CloseVoteResponse {
+	Status status = 1;
+}
+
+
+
