@@ -361,10 +361,10 @@ func (p *Processor) createVoteContext(request *pb.OpenVoteRequest) (*voteContext
 	counts := make([]*pb.VoteCount, 0, len(request.Choices))
 	for i := 0; i < len(request.Choices); i += 1 {
 		request.Choices[i].Label = norm.NFKC.String(request.Choices[i].Label)
-		counts[i] = &pb.VoteCount {
+		counts = append(counts, &pb.VoteCount {
 			Label: request.Choices[i].Label,
 			Count: 0,
-		}
+		})
 	}
 	voteCtx := &voteContext {
 		voteId: voteId,
@@ -427,7 +427,7 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 				}
 				normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
 				matches := make([]*match, 0, len(voteCtx.choices))
-				for choiceIdx := 0; choiceIdx <= len(voteCtx.choices); choiceIdx += 1 {
+				for choiceIdx := 0; choiceIdx < len(voteCtx.choices); choiceIdx += 1 {
 					choice := voteCtx.choices[choiceIdx]
 					messageIdx := strings.Index(normDisplayMessage, choice.Label)
 					if messageIdx == -1 {
