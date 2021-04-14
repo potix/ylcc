@@ -100,7 +100,7 @@ func (h *Handler) UpdateVoteDuration(ctx context.Context, request *pb.UpdateVote
 }
 
 func (h *Handler) GetVoteResut(ctx context.Context, request *pb.GetVoteResultRequest) (*pb.GetVoteResultResponse, error) {
-	return h.processor.GetVoteResut(request)
+	return h.processor.GetVoteResult(request)
 }
 
 func (h *Handler) CloseVote(ctx context.Context, request *pb.CloseVoteRequest) (*pb.CloseVoteResponse, error) {

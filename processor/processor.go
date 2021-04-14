@@ -274,13 +274,6 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	}, nil
 }
 
-
-
-
-
-
-
-
 type voteContext struct {
 	voteId       string
 	videoId      string
@@ -330,13 +323,30 @@ func (p *Processor) unregisterRequestedVote(voteCtx *voteContext) {
 	delete(p.requestedVote, voteCtx.voteId)
 }
 
+func (p *Processor) getRequestedVote(voteId string) (*voteContext, bool) {
+	p.requestedVoteMutex.Lock()
+	defer p.requestedVoteMutex.Unlock()
+	voteCtx, ok := p.requestedVote[voteId]
+	return voteCtx, ok
+}
+
+func (p *Processor) getAndRemoveRequestedVote(voteId string) (*voteContext, bool) {
+	p.requestedVoteMutex.Lock()
+	defer p.requestedVoteMutex.Unlock()
+	voteCtx, ok := p.requestedVote[voteId]
+	if ok {
+		delete(p.requestedVote, voteId)
+	}
+	return voteCtx, ok
+}
+
 func (p *Processor) createVoteId() (string, error) {
 	u, err := uuid.NewRandom()
 	if err != nil {
 		return "", fmt.Errorf("can not create uuid: %w", err)
 	}
 	s := sha1.Sum([]byte(time.Now().String()))
-	return fmt.Sprintf("%v-%v", u, s), nil
+	return fmt.Sprintf("%v-%x", u.String(), s), nil
 }
 
 func (p *Processor) createVoteContext(request *pb.OpenVoteRequest) (*voteContext, error) {
@@ -382,8 +392,8 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 		select {
 		case response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh():
 			if !ok {
-				voteCtx.stop()
 				p.unregisterRequestedVote(voteCtx)
+				voteCtx.stop()
 				return
 			}
 			if voteCtx.stopped {
@@ -427,6 +437,7 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 				}
 				sort.Slice(matches , func(i, j int) bool { return matches[i].messageIdx < matches[j].messageIdx })
 				m := matches[0]
+				voteCtx.total += 1
 				voteCtx.counts[m.choiceIdx].Count += 1
 				voteCtx.voted[activeLiveChatMessage.AuthorChannelId] = true
 			}
@@ -434,7 +445,6 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 			voteCtx.resetStopTimer(duration)
 		case <-voteCtx.closeEventCh:
 			voteCtx.stop()
-			p.unregisterRequestedVote(voteCtx)
 			return
 		case <-voteCtx.stopTimer.C:
 			voteCtx.stopped = true
@@ -485,18 +495,60 @@ func (p *Processor) OpenVote(request *pb.OpenVoteRequest) (*pb.OpenVoteResponse,
         }, nil
 }
 
+func (p *Processor) UpdateVoteDuration(request *pb.UpdateVoteDurationRequest) (*pb.UpdateVoteDurationResponse, error) {
+	status := new(pb.Status)
+	voteCtx, ok := p.getRequestedVote(request.VoteId)
+	if !ok {
+                status.Code = pb.Code_NOT_FOUND
+                status.Message = fmt.Sprintf("not found vote context (voteId = %v)", request.VoteId)
+		return &pb.UpdateVoteDurationResponse{
+			Status: status,
+		}, nil
+	}
+	voteCtx.emitResetEvent(request.Duration)
+	status.Code = pb.Code_SUCCESS
+        status.Message = fmt.Sprintf("success (videoId = %v, voteId = %v)", voteCtx.videoId, voteCtx.voteId)
+        return &pb.UpdateVoteDurationResponse{
+                Status: status,
+        }, nil
+}
 
+func (p *Processor) GetVoteResult(request *pb.GetVoteResultRequest) (*pb.GetVoteResultResponse, error) {
+	status := new(pb.Status)
+	voteCtx, ok := p.getRequestedVote(request.VoteId)
+	if !ok {
+                status.Code = pb.Code_NOT_FOUND
+                status.Message = fmt.Sprintf("not found vote context (voteId = %v)", request.VoteId)
+		return &pb.GetVoteResultResponse{
+			Status: status,
+		}, nil
+	}
+	status.Code = pb.Code_SUCCESS
+        status.Message = fmt.Sprintf("success (videoId = %v, voteId = %v)", voteCtx.videoId, voteCtx.voteId)
+        return &pb.GetVoteResultResponse{
+                Status: status,
+		Total: voteCtx.total,
+		Counts: voteCtx.counts,
+        }, nil
+}
 
-
-
-
-
-
-
-
-
-
-
+func (p *Processor) CloseVote(request *pb.CloseVoteRequest) (*pb.CloseVoteResponse, error) {
+	status := new(pb.Status)
+	voteCtx, ok := p.getAndRemoveRequestedVote(request.VoteId)
+	if !ok {
+                status.Code = pb.Code_NOT_FOUND
+                status.Message = fmt.Sprintf("not found vote context (voteId = %v)", request.VoteId)
+		return &pb.CloseVoteResponse{
+			Status: status,
+		}, nil
+	}
+	voteCtx.emitCloseEvent()
+	status.Code = pb.Code_SUCCESS
+        status.Message = fmt.Sprintf("success (videoId = %v, voteId = %v)", voteCtx.videoId, voteCtx.voteId)
+        return &pb.CloseVoteResponse{
+                Status: status,
+        }, nil
+}
 
 func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {
 	baseOpts := defaultOptions()
