@@ -450,6 +450,8 @@ func (d *DatabaseOperator) createTables() error {
 		displayMessage        TEXT NOT NULL,
 		publishedAt           TEXT NOT NULL,
 		isSuperChat           INTEGER NOT NULL,
+		isSuperSticker        INTEGER NOT NULL,
+		isFanFundingEvent     INTEGER NOT NULL,
 		amountMicros          TEXT NOT NULL,
 		amountDisplayString   TEXT NOT NULL,
 		currency              TEXT NOT NULL,

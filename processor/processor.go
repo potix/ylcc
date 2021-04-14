@@ -294,12 +294,15 @@ func (v *voteContext) setStopTimer() {
 }
 
 func (v *voteContext) resetStopTimer(duration int32) {
-	v.stop()
+	v.stopTimer.Stop()
 	v.duration = duration
 	v.stopTimer = time.NewTimer(time.Duration(duration) * time.Second)
 }
 
 func (v *voteContext) emitResetEvent(duration int32) {
+	if v.stopped {
+		return
+	}
 	v.resetEventCh <- duration
 }
 
@@ -308,6 +311,7 @@ func (v *voteContext) emitCloseEvent() {
 }
 
 func (v *voteContext) stop() {
+	v.stopped = true
 	v.stopTimer.Stop()
 }
 
@@ -447,7 +451,7 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 			voteCtx.stop()
 			return
 		case <-voteCtx.stopTimer.C:
-			voteCtx.stopped = true
+			voteCtx.stop()
 		}
 	}
 }

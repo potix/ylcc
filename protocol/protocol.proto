@@ -30,12 +30,11 @@ service ylcc {
 	rpc GetWordCloud (GetWordCloudRequest) returns (GetWordCloudResponse) {}
 
 	// 配信中のライブチャットの収集を始めて投票を開始する
-	// すでに収集中はエラーを返す
 	rpc OpenVote (OpenVoteRequest) returns (OpenVoteResponse) {}
 	// 配信中のライブチャットの投票の時間を変更する
 	rpc UpdateVoteDuration (UpdateVoteDurationRequest) returns (UpdateVoteDurationResponse) {}
 	// 配信中のライブチャットの投票の現在の結果を取得する
-	rpc GetVoteResut (GetVoteResultRequest) returns (GetVoteResultResponse) {}
+	rpc GetVoteResult (GetVoteResultRequest) returns (GetVoteResultResponse) {}
 	// 配信中のライブチャットの投票を終わる
 	rpc CloseVote (CloseVoteRequest) returns (CloseVoteResponse) {}
 }
