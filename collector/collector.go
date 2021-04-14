@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"strconv"
 )
 
 const (
@@ -154,8 +155,61 @@ func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtu
 					DisplayMessage:        item.Snippet.SuperChatDetails.UserComment,
 					PublishedAt:           item.Snippet.PublishedAt,
 					IsSuperChat:           true,
+					IsSuperSticker:        false,
+					IsFanFundingEvent:     false,
+					AmountMicros:          strconv.FormatUint(item.Snippet.SuperChatDetails.AmountMicros, 10),
 					AmountDisplayString:   item.Snippet.SuperChatDetails.AmountDisplayString,
-					Currency:              item.Snippet.SuperChatDetails.AmountDisplayString,
+					Currency:              item.Snippet.SuperChatDetails.Currency,
+					PageToken:             params.GetPageToken(),
+				}
+				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
+			} else if item.Snippet.SuperStickerDetails != nil {
+				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
+					MessageId:             item.Id,
+					ChannelId:             video.Snippet.ChannelId,
+					VideoId:               video.Id,
+					ApiEtag:               liveChatMessageListResponse.Etag,
+					AuthorChannelId:       item.AuthorDetails.ChannelId,
+					AuthorChannelUrl:      item.AuthorDetails.ChannelUrl,
+					AuthorDisplayName:     item.AuthorDetails.DisplayName,
+					AuthorIsChatModerator: item.AuthorDetails.IsChatModerator,
+					AuthorIsChatOwner:     item.AuthorDetails.IsChatOwner,
+					AuthorIsChatSponsor:   item.AuthorDetails.IsChatSponsor,
+					AuthorIsVerified:      item.AuthorDetails.IsVerified,
+					LiveChatId:            item.Snippet.LiveChatId,
+					DisplayMessage:        item.Snippet.SuperStickerDetails.SuperStickerMetadata.AltText,
+					PublishedAt:           item.Snippet.PublishedAt,
+					IsSuperChat:           false,
+					IsSuperSticker:        true,
+					IsFanFundingEvent:     false,
+					AmountMicros:          strconv.FormatUint(item.Snippet.SuperStickerDetails.AmountMicros, 10),
+					AmountDisplayString:   item.Snippet.SuperStickerDetails.AmountDisplayString,
+					Currency:              item.Snippet.SuperStickerDetails.Currency,
+					PageToken:             params.GetPageToken(),
+				}
+				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
+			} else if item.Snippet.FanFundingEventDetails != nil {
+				activeLiveChatMessage := &pb.ActiveLiveChatMessage{
+					MessageId:             item.Id,
+					ChannelId:             video.Snippet.ChannelId,
+					VideoId:               video.Id,
+					ApiEtag:               liveChatMessageListResponse.Etag,
+					AuthorChannelId:       item.AuthorDetails.ChannelId,
+					AuthorChannelUrl:      item.AuthorDetails.ChannelUrl,
+					AuthorDisplayName:     item.AuthorDetails.DisplayName,
+					AuthorIsChatModerator: item.AuthorDetails.IsChatModerator,
+					AuthorIsChatOwner:     item.AuthorDetails.IsChatOwner,
+					AuthorIsChatSponsor:   item.AuthorDetails.IsChatSponsor,
+					AuthorIsVerified:      item.AuthorDetails.IsVerified,
+					LiveChatId:            item.Snippet.LiveChatId,
+					DisplayMessage:        item.Snippet.FanFundingEventDetails.UserComment,
+					PublishedAt:           item.Snippet.PublishedAt,
+					IsSuperChat:           false,
+					IsSuperSticker:        false,
+					IsFanFundingEvent:     true,
+					AmountMicros:          strconv.FormatUint(item.Snippet.FanFundingEventDetails.AmountMicros, 10),
+					AmountDisplayString:   item.Snippet.FanFundingEventDetails.AmountDisplayString,
+					Currency:              item.Snippet.FanFundingEventDetails.Currency,
 					PageToken:             params.GetPageToken(),
 				}
 				activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
@@ -176,6 +230,9 @@ func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtu
 					DisplayMessage:        item.Snippet.TextMessageDetails.MessageText,
 					PublishedAt:           item.Snippet.PublishedAt,
 					IsSuperChat:           false,
+					IsSuperSticker:        false,
+					IsFanFundingEvent:     false,
+					AmountMicros:           "",
 					AmountDisplayString:   "",
 					Currency:              "",
 					PageToken:             params.GetPageToken(),

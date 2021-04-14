@@ -152,9 +152,12 @@ message ActiveLiveChatMessage {
 	string displayMessage = 13;
 	string publishedAt = 14;
 	bool isSuperChat = 15;
-	string amountDisplayString = 16;
-	string currency = 17;
-	string pageToken = 18;
+	bool isSuperSticker = 16;
+	bool isFanFundingEvent = 17;
+	string amountMicros = 18;
+	string amountDisplayString = 19;
+	string currency = 20;
+	string pageToken = 21;
 }
 
 message ArchiveLiveChatMessage {
