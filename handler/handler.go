@@ -91,6 +91,22 @@ func (h *Handler) GetWordCloud(ctx context.Context, request *pb.GetWordCloudRequ
 	return h.processor.GetWordCloud(request)
 }
 
+func (h *Handler) OpenVote(ctx context.Context, request *pb.OpenVoteRequest)  (*pb.OpenVoteResponse, error) {
+	return h.processor.OpenVote(request)
+}
+
+func (h *Handler) UpdateVoteDuration(ctx context.Context, request *pb.UpdateVoteDurationRequest) (*pb.UpdateVoteDurationResponse, error) {
+	return h.processor.UpdateVoteDuration(request)
+}
+
+func (h *Handler) GetVoteResut(ctx context.Context, request *pb.GetVoteResultRequest) (*pb.GetVoteResultResponse, error) {
+	return h.processor.GetVoteResut(request)
+}
+
+func (h *Handler) CloseVote(ctx context.Context, request *pb.CloseVoteRequest) (*pb.CloseVoteResponse, error) {
+	return h.processor.CloseVote(request)
+}
+
 func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) *Handler {
 	baseOpts := &options{
 		verbose: false,

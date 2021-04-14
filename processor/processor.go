@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"container/list"
+	"time"
+	"strings"
+	"sort"
 	"github.com/potix/ylcc/collector"
 	"github.com/potix/ylcc/counter"
 	pb "github.com/potix/ylcc/protocol"
@@ -12,6 +14,9 @@ import (
 	"image/color"
 	"image/png"
 	"sync"
+	"github.com/google/uuid"
+	"crypto/sha1"
+	"golang.org/x/text/unicode/norm"
 )
 
 type options struct {
@@ -37,11 +42,12 @@ type Processor struct {
 	collector                    *collector.Collector
 	mecabrc                      string
 	font                         string
-	wordCloudMessageLimit        int
 	requestedVideoWordCloudMutex *sync.Mutex
 	requestedVideoWordCloud      map[string]bool
 	videoWordCloudMessagesMutex  *sync.Mutex
-	videoWordCloudMessages       map[string]*list.List
+	videoWordCloudMessages       map[string][]*pb.ActiveLiveChatMessage
+	requestedVoteMutex           *sync.Mutex
+	requestedVote                map[string]*voteContext
 }
 
 func (p *Processor) registerRequestedVideoWordCloud(videoId string) bool {
@@ -79,20 +85,17 @@ func (p *Processor) unregisterRequestedVideoWordCloud(videoId string) bool {
 func (p *Processor) addWordCloudMessage(videoId string, activeLiveChatMessage *pb.ActiveLiveChatMessage) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
-	_, ok := p.videoWordCloudMessages[videoId]
+	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
 	if !ok {
-		activeLiveChatMessages := list.New()
-		activeLiveChatMessages.PushBack(activeLiveChatMessage)
+		activeLiveChatMessages := make([]*pb.ActiveLiveChatMessage, 0, 2000)
+		activeLiveChatMessages = append(activeLiveChatMessages, activeLiveChatMessage)
 		p.videoWordCloudMessages[videoId] = activeLiveChatMessages
 		return
 	}
-	if p.videoWordCloudMessages[videoId].Len() > p.wordCloudMessageLimit {
-		p.videoWordCloudMessages[videoId].Remove(p.videoWordCloudMessages[videoId].Front())
-	}
-	p.videoWordCloudMessages[videoId].PushBack(activeLiveChatMessage)
+	p.videoWordCloudMessages[videoId] = append(activeLiveChatMessages, activeLiveChatMessage)
 }
 
-func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]string, bool) {
+func (p *Processor) getWordCloudMessages(videoId string, target pb.Target, messageLimit int) ([]string, bool) {
 	p.videoWordCloudMessagesMutex.Lock()
 	defer p.videoWordCloudMessagesMutex.Unlock()
 	activeLiveChatMessages, ok := p.videoWordCloudMessages[videoId]
@@ -102,9 +105,9 @@ func (p *Processor) getWordCloudMessages(videoId string, target pb.Target) ([]st
 		}
 		return nil, false
 	}
-	messages := make([]string, 0, activeLiveChatMessages.Len())
-	for e := activeLiveChatMessages.Front(); e != nil; e = e.Next() {
-		activeLiveChatMessage := e.Value.(*pb.ActiveLiveChatMessage)
+	messages := make([]string, 0, len(activeLiveChatMessages))
+	for i := len(activeLiveChatMessages) - 1; i >= 0 && i >= len(activeLiveChatMessages) - 1 - messageLimit; i -= 1  {
+		activeLiveChatMessage := activeLiveChatMessages[i];
 		if target == pb.Target_OWNER_MODERATOR {
 			if !(activeLiveChatMessage.AuthorIsChatModerator ||
 				activeLiveChatMessage.AuthorIsChatOwner) {
@@ -207,7 +210,7 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 			Data:     nil,
 		}, nil
 	}
-	messages, ok := p.getWordCloudMessages(request.VideoId, request.Target)
+	messages, ok := p.getWordCloudMessages(request.VideoId, request.Target, int(request.MessageLimit))
 	if !ok {
 		status.Code = pb.Code_IN_PROGRESS
 		status.Message = fmt.Sprintf("not found word cloud messages (videoId = %v)", request.VideoId)
@@ -252,8 +255,6 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 		wordclouds.RandomPlacement(false),
 	)
 	img := wordCound.Draw()
-
-
 	buf := new(bytes.Buffer)
 	if err := png.Encode(buf, img); err != nil {
 		status.Code = pb.Code_INTERNAL_ERROR
@@ -273,7 +274,231 @@ func (p *Processor) GetWordCloud(request *pb.GetWordCloudRequest) (*pb.GetWordCl
 	}, nil
 }
 
-func NewProcessor(collector *collector.Collector, mecabrc string, font string, wordCloudMessageLimit int, opts ...Option) *Processor {
+
+
+
+
+
+
+
+type voteContext struct {
+	voteId       string
+	videoId      string
+	target       pb.Target
+	duration     int32
+	choices      []*pb.VoteChoice
+	stopTimer    *time.Timer
+	resetEventCh chan int32
+	closeEventCh chan int
+	total        int32
+	counts       []*pb.VoteCount
+	voted        map[string]bool
+	stopped      bool
+}
+
+func (v *voteContext) setStopTimer() {
+	v.stopTimer = time.NewTimer(time.Duration(v.duration) * time.Second)
+}
+
+func (v *voteContext) resetStopTimer(duration int32) {
+	v.stop()
+	v.duration = duration
+	v.stopTimer = time.NewTimer(time.Duration(duration) * time.Second)
+}
+
+func (v *voteContext) emitResetEvent(duration int32) {
+	v.resetEventCh <- duration
+}
+
+func (v *voteContext) emitCloseEvent() {
+	close(v.closeEventCh)
+}
+
+func (v *voteContext) stop() {
+	v.stopTimer.Stop()
+}
+
+func (p *Processor) registerRequestedVote(voteCtx *voteContext) {
+	p.requestedVoteMutex.Lock()
+	defer p.requestedVoteMutex.Unlock()
+	p.requestedVote[voteCtx.voteId] = voteCtx
+}
+
+func (p *Processor) unregisterRequestedVote(voteCtx *voteContext) {
+	p.requestedVoteMutex.Lock()
+	defer p.requestedVoteMutex.Unlock()
+	delete(p.requestedVote, voteCtx.voteId)
+}
+
+func (p *Processor) createVoteId() (string, error) {
+	u, err := uuid.NewRandom()
+	if err != nil {
+		return "", fmt.Errorf("can not create uuid: %w", err)
+	}
+	s := sha1.Sum([]byte(time.Now().String()))
+	return fmt.Sprintf("%v-%v", u, s), nil
+}
+
+func (p *Processor) createVoteContext(request *pb.OpenVoteRequest) (*voteContext, error) {
+	voteId, err:= p.createVoteId()
+	if err != nil {
+		return nil, fmt.Errorf("can not create voteId: %w", err)
+	}
+	counts := make([]*pb.VoteCount, 0, len(request.Choices))
+	for i := 0; i < len(request.Choices); i += 1 {
+		request.Choices[i].Label = norm.NFKC.String(request.Choices[i].Label)
+		counts[i] = &pb.VoteCount {
+			Label: request.Choices[i].Label,
+			Count: 0,
+		}
+	}
+	voteCtx := &voteContext {
+		voteId: voteId,
+		videoId: request.VideoId,
+		target: request.Target,
+		duration: request.Duration,
+		choices: request.Choices,
+		stopTimer: nil,
+		resetEventCh: make(chan int32),
+		closeEventCh: make(chan int),
+		total: 0,
+		counts: counts,
+		voted: make(map[string]bool),
+		stopped: false,
+	}
+	return voteCtx, nil
+}
+
+type match struct {
+	choiceIdx  int
+	messageIdx int
+}
+
+func (p *Processor) watchVote(voteCtx *voteContext) {
+	voteCtx.setStopTimer()
+	subscribeActiveLiveChatParams := p.collector.SubscribeActiveLiveChat(voteCtx.videoId)
+	defer p.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
+	for {
+		select {
+		case response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh():
+			if !ok {
+				voteCtx.stop()
+				p.unregisterRequestedVote(voteCtx)
+				return
+			}
+			if voteCtx.stopped {
+				// expired and not be counted
+				break
+			}
+			for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
+				if activeLiveChatMessage.DisplayMessage == "" {
+					continue
+				}
+				_, ok := voteCtx.voted[activeLiveChatMessage.AuthorChannelId]
+				if ok {
+					// already voted
+					continue
+				}
+				if voteCtx.target == pb.Target_OWNER_MODERATOR {
+					if !(activeLiveChatMessage.AuthorIsChatModerator ||
+						activeLiveChatMessage.AuthorIsChatOwner) {
+						continue
+					}
+				} else if voteCtx.target == pb.Target_OWNER_MODERATOR_SPONSOR {
+					if !(activeLiveChatMessage.AuthorIsChatModerator ||
+						activeLiveChatMessage.AuthorIsChatOwner ||
+						activeLiveChatMessage.AuthorIsChatSponsor) {
+						continue
+					}
+				}
+				normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
+				matches := make([]*match, 0, len(voteCtx.choices))
+				for choiceIdx := 0; choiceIdx <= len(voteCtx.choices); choiceIdx += 1 {
+					choice := voteCtx.choices[choiceIdx]
+					messageIdx := strings.Index(normDisplayMessage, choice.Label)
+					if messageIdx == -1 {
+						continue
+					}
+					matches = append(matches, &match{ choiceIdx: choiceIdx, messageIdx: messageIdx })
+				}
+				if len(matches) == 0 {
+					// not match label
+					continue
+				}
+				sort.Slice(matches , func(i, j int) bool { return matches[i].messageIdx < matches[j].messageIdx })
+				m := matches[0]
+				voteCtx.counts[m.choiceIdx].Count += 1
+				voteCtx.voted[activeLiveChatMessage.AuthorChannelId] = true
+			}
+		case duration := <-voteCtx.resetEventCh:
+			voteCtx.resetStopTimer(duration)
+		case <-voteCtx.closeEventCh:
+			voteCtx.stop()
+			p.unregisterRequestedVote(voteCtx)
+			return
+		case <-voteCtx.stopTimer.C:
+			voteCtx.stopped = true
+		}
+	}
+}
+
+func (p *Processor) OpenVote(request *pb.OpenVoteRequest) (*pb.OpenVoteResponse, error) {
+	status := new(pb.Status)
+	voteCtx, err := p.createVoteContext(request)
+	if err != nil {
+                status.Code = pb.Code_INTERNAL_ERROR
+                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
+		return &pb.OpenVoteResponse{
+			Status: status,
+			VoteId: "",
+			Video: nil,
+		}, nil
+	}
+	startCollectionActiveLiveChatRequest := &pb.StartCollectionActiveLiveChatRequest {
+		VideoId: request.VideoId,
+	}
+	startCollectionActiveLiveChatResponse, err := p.collector.StartCollectionActiveLiveChat(startCollectionActiveLiveChatRequest)
+	if err != nil {
+                status.Code = pb.Code_INTERNAL_ERROR
+                status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
+		return &pb.OpenVoteResponse{
+			Status: status,
+			VoteId: "",
+			Video: nil,
+		}, nil
+	}
+	if startCollectionActiveLiveChatResponse.Status.Code != pb.Code_SUCCESS && startCollectionActiveLiveChatResponse.Status.Code != pb.Code_IN_PROGRESS {
+		return &pb.OpenVoteResponse{
+			Status: startCollectionActiveLiveChatResponse.Status,
+			VoteId: "",
+			Video: nil,
+		}, nil
+	}
+	p.registerRequestedVote(voteCtx)
+	go p.watchVote(voteCtx)
+	status.Code = pb.Code_SUCCESS
+        status.Message = fmt.Sprintf("success (videoId = %v, voteId = %v)", request.VideoId, voteCtx.voteId)
+        return &pb.OpenVoteResponse{
+                Status: status,
+		VoteId: voteCtx.voteId,
+                Video:  startCollectionActiveLiveChatResponse.Video,
+        }, nil
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
 		opt(baseOpts)
@@ -283,10 +508,11 @@ func NewProcessor(collector *collector.Collector, mecabrc string, font string, w
 		collector:                    collector,
 		mecabrc:                      mecabrc,
 		font:                         font,
-		wordCloudMessageLimit:        wordCloudMessageLimit,
 		requestedVideoWordCloudMutex: new(sync.Mutex),
 		requestedVideoWordCloud:      make(map[string]bool),
 		videoWordCloudMessagesMutex:  new(sync.Mutex),
-		videoWordCloudMessages:       make(map[string]*list.List),
+		videoWordCloudMessages:       make(map[string][]*pb.ActiveLiveChatMessage),
+		requestedVoteMutex:           new(sync.Mutex),
+		requestedVote:                make(map[string]*voteContext),
 	}
 }
