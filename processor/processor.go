@@ -358,13 +358,13 @@ func (p *Processor) createVoteContext(request *pb.OpenVoteRequest) (*voteContext
 	if err != nil {
 		return nil, fmt.Errorf("can not create voteId: %w", err)
 	}
-	counts := make([]*pb.VoteCount, 0, len(request.Choices))
+	counts := make([]*pb.VoteCount, len(request.Choices))
 	for i := 0; i < len(request.Choices); i += 1 {
 		request.Choices[i].Label = norm.NFKC.String(request.Choices[i].Label)
-		counts = append(counts, &pb.VoteCount {
+		counts[i] = &pb.VoteCount {
 			Label: request.Choices[i].Label,
 			Count: 0,
-		})
+		}
 	}
 	voteCtx := &voteContext {
 		voteId: voteId,
