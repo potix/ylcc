@@ -389,6 +389,9 @@ type match struct {
 }
 
 func (p *Processor) watchVote(voteCtx *voteContext) {
+	if p.verbose {
+		log.Printf("vote watch start (voteId = %v)", voteCtx.voteId)
+	}
 	voteCtx.setStopTimer()
 	subscribeActiveLiveChatParams := p.collector.SubscribeActiveLiveChat(voteCtx.videoId)
 	defer p.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
@@ -398,6 +401,9 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 			if !ok {
 				p.unregisterRequestedVote(voteCtx)
 				voteCtx.stop()
+				if p.verbose {
+					log.Printf("vote watch end (voteId = %v)", voteCtx.voteId)
+				}
 				return
 			}
 			if voteCtx.stopped {
@@ -446,11 +452,23 @@ func (p *Processor) watchVote(voteCtx *voteContext) {
 				voteCtx.voted[activeLiveChatMessage.AuthorChannelId] = true
 			}
 		case duration := <-voteCtx.resetEventCh:
+			if p.verbose {
+				log.Printf("reset event (voteId = %v)", voteCtx.voteId)
+			}
 			voteCtx.resetStopTimer(duration)
 		case <-voteCtx.closeEventCh:
+			if p.verbose {
+				log.Printf("close event (voteId = %v)", voteCtx.voteId)
+			}
 			voteCtx.stop()
+			if p.verbose {
+				log.Printf("vote watch end (voteId = %v)", voteCtx.voteId)
+			}
 			return
 		case <-voteCtx.stopTimer.C:
+			if p.verbose {
+				log.Printf("stop timer (voteId = %v)", voteCtx.voteId)
+			}
 			voteCtx.stop()
 		}
 	}
@@ -526,6 +544,9 @@ func (p *Processor) GetVoteResult(request *pb.GetVoteResultRequest) (*pb.GetVote
 		return &pb.GetVoteResultResponse{
 			Status: status,
 		}, nil
+	}
+	if p.verbose {
+		log.Printf("total = %v, counts = %v", voteCtx.total, voteCtx.counts)
 	}
 	status.Code = pb.Code_SUCCESS
         status.Message = fmt.Sprintf("success (videoId = %v, voteId = %v)", voteCtx.videoId, voteCtx.voteId)
