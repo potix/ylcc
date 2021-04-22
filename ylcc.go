@@ -71,7 +71,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("can not load config: %v", err)
 	}
-	if conf.Log.UseSyslog {
+	if conf.Processor == nil || conf.Collector == nil || conf.Server == nil {
+		log.Fatalf("invalid config")
+        }
+	if conf.Log != nil &&  conf.Log.UseSyslog {
 		logger, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, "ylcc")
 		if err != nil {
 			log.Fatalf("can not create syslog: %v", err)
