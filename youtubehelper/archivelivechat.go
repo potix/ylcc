@@ -161,6 +161,9 @@ func (a *ArchiveLiveChatCollector) Next(params ArchiveLiveChatParams, resp *GetL
 func NewArchiveLiveChatCollector(opts ...Option) *ArchiveLiveChatCollector {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	res := make(map[string]*regexp.Regexp)

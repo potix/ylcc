@@ -70,6 +70,9 @@ func (s *Server) Stop() {
 func NewServer(addrPort string, handler Handler, opts ...Option) (*Server, error) {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	listen, err := net.Listen("tcp", addrPort)

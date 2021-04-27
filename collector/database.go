@@ -538,6 +538,9 @@ func (d *DatabaseOperator) Close() {
 func NewDatabaseOperator(databasePath string, opts ...Option) (*DatabaseOperator, error) {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	if databasePath == "" {

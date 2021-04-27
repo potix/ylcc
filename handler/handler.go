@@ -108,10 +108,11 @@ func (h *Handler) CloseVote(ctx context.Context, request *pb.CloseVoteRequest) (
 }
 
 func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) *Handler {
-	baseOpts := &options{
-		verbose: false,
-	}
+	baseOpts :=  defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	return &Handler{

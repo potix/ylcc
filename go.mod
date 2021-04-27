@@ -3,11 +3,12 @@ module github.com/potix/ylcc
 go 1.16
 
 require (
-	github.com/BurntSushi/toml v0.3.1
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.2.0
 	github.com/mattn/go-sqlite3 v1.14.7
+	github.com/potix/utils/configurator v0.0.0-20210427034735-084579ec7a8d
+	github.com/potix/utils/signal v0.0.0-20210427034735-084579ec7a8d
 	github.com/psykhi/wordclouds v0.0.0-20191111204742-28c4ac381ff3
 	github.com/shogo82148/go-mecab v0.0.5
 	github.com/tmdvs/Go-Emoji-Utils v1.1.0

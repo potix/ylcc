@@ -722,6 +722,9 @@ func (c *Collector) Stop() {
 func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Collector, error) {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	if len(apiKeys) < 1 {

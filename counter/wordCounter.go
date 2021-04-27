@@ -123,6 +123,9 @@ func (w *WordCounter) Result() map[string]int {
 func NewWordCounter(mecabrc string, opts ...Option) *WordCounter {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	return &WordCounter{
