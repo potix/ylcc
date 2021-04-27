@@ -578,6 +578,9 @@ func (p *Processor) CloseVote(request *pb.CloseVoteRequest) (*pb.CloseVoteRespon
 func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+                        continue
+                }
 		opt(baseOpts)
 	}
 	return &Processor{

@@ -79,6 +79,9 @@ func (a *ActiveLiveChatCollector) Next(params *ActiveLiveChatParams, liveChatMes
 func NewActiveLiveChatCollector(apiKey string, opts ...Option) *ActiveLiveChatCollector {
 	baseOpts := defaultOptions()
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		opt(baseOpts)
 	}
 	return &ActiveLiveChatCollector{
