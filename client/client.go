@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"fmt"
@@ -8,14 +8,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-type YlccClinet struct {
+type YlccClient struct {
 	addrPort string
 	options  []grpc.DialOption
 	conn     *grpc.ClientConn
 	client   pb.YlccClient
 }
 
-func (y *YlccClinet) Dial() (error) {
+func (y *YlccClient) Dial() (error) {
 	conn, err := grpc.Dial(
 		y.addrPort,
 		y.options...,
@@ -28,7 +28,11 @@ func (y *YlccClinet) Dial() (error) {
 	return nil
 }
 
-func (y *YlccClinet) GetVideo(ctx context.Context, videoId string) (*pb.GetVideoResponse, error) {
+func (y *YlccClient) Close() {
+	y.conn.Close()
+}
+
+func (y *YlccClient) GetVideo(ctx context.Context, videoId string) (*pb.GetVideoResponse, error) {
 	request := &pb.GetVideoRequest{
 		VideoId: videoId,
 	}
@@ -39,7 +43,7 @@ func (y *YlccClinet) GetVideo(ctx context.Context, videoId string) (*pb.GetVideo
 	return response, err
 }
 
-func (y *YlccClinet) StartCollectionActiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionActiveLiveChatResponse, error) {
+func (y *YlccClient) StartCollectionActiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionActiveLiveChatResponse, error) {
 	request := &pb.StartCollectionActiveLiveChatRequest{
 		VideoId: videoId,
 	}
@@ -50,13 +54,13 @@ func (y *YlccClinet) StartCollectionActiveLiveChat(ctx context.Context, videoId 
 	return response, err
 }
 
-func (y *YlccClinet) PollActiveLiveChat(ctx context.Context, videoId string, cbFunc func(*pb.PollActiveLiveChatResponse) (bool)) (error) {
+func (y *YlccClient) PollActiveLiveChat(ctx context.Context, videoId string, cbFunc func(*pb.PollActiveLiveChatResponse) (bool)) (error) {
 	request := &pb.PollActiveLiveChatRequest{
 		VideoId: videoId,
 	}
 	pollClient, err := y.client.PollActiveLiveChat(ctx, request)
 	if err != nil {
-		return fmt.Errorf("can not create stream clinet of active live chat: %w", err)
+		return fmt.Errorf("can not create stream client of active live chat: %w", err)
 	}
 	for {
 		response, err := pollClient.Recv()
@@ -73,7 +77,7 @@ func (y *YlccClinet) PollActiveLiveChat(ctx context.Context, videoId string, cbF
 	return nil
 }
 
-func (y *YlccClinet) GetCachedActiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetCachedActiveLiveChatResponse, error) {
+func (y *YlccClient) GetCachedActiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetCachedActiveLiveChatResponse, error) {
 	request := &pb.GetCachedActiveLiveChatRequest{
 		VideoId: videoId,
 		Offset:  offset,
@@ -86,7 +90,7 @@ func (y *YlccClinet) GetCachedActiveLiveChat(ctx context.Context, videoId string
 	return response, nil
 }
 
-func (y *YlccClinet) StartCollectionArchiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionArchiveLiveChatResponse, error) {
+func (y *YlccClient) StartCollectionArchiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 	request := &pb.StartCollectionArchiveLiveChatRequest{
 		VideoId: videoId,
 	}
@@ -97,7 +101,7 @@ func (y *YlccClinet) StartCollectionArchiveLiveChat(ctx context.Context, videoId
 	return response, nil
 }
 
-func (y *YlccClinet) GetArchiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetArchiveLiveChatResponse, error) {
+func (y *YlccClient) GetArchiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetArchiveLiveChatResponse, error) {
 	request := &pb.GetArchiveLiveChatRequest{
 		VideoId: videoId,
 		Offset:  offset,
@@ -110,7 +114,7 @@ func (y *YlccClinet) GetArchiveLiveChat(ctx context.Context, videoId string, off
 	return response, nil
 }
 
-func (y *YlccClinet) StartCollectionWordCloudMessages(ctx context.Context, videoId string) (*pb.StartCollectionWordCloudMessagesResponse, error) {
+func (y *YlccClient) StartCollectionWordCloudMessages(ctx context.Context, videoId string) (*pb.StartCollectionWordCloudMessagesResponse, error) {
 	request := &pb.StartCollectionWordCloudMessagesRequest{
 		VideoId: videoId,
 	}
@@ -121,15 +125,15 @@ func (y *YlccClinet) StartCollectionWordCloudMessages(ctx context.Context, video
 	return response, nil
 }
 
-func (y *YlccClinet) BuildRGBAColor(r uint32, g uint32, b uint32, a uint32) (*pb.Color) {
+func (y *YlccClient) BuildRGBAColor(r uint32, g uint32, b uint32, a uint32) (*pb.Color) {
 	return &pb.Color{ R: r, G: g, B: b, A: a }
 }
 
-func (y *YlccClinet) BuildRGBColor(r uint32, g uint32, b uint32) (*pb.Color) {
+func (y *YlccClient) BuildRGBColor(r uint32, g uint32, b uint32) (*pb.Color) {
 	return &pb.Color{ R: r, G: g, B: b, A: 255 }
 }
 
-func (y *YlccClinet) GetWordCloud(
+func (y *YlccClient) GetWordCloud(
 	ctx context.Context,
 	videoId string,
 	target pb.Target,
@@ -158,7 +162,14 @@ func (y *YlccClinet) GetWordCloud(
 	return response, nil
 }
 
-func (y *YlccClinet) OpenVote(ctx context.Context, videoId string, target pb.Target, duration int32, choices []*pb.VoteChoice) (*pb.OpenVoteResponse, error) {
+func (y *YlccClient) BuildChoice(label string, choice string) (*pb.VoteChoice) {
+	return &pb.VoteChoice {
+		Label: label,
+		Choice: choice,
+	}
+}
+
+func (y *YlccClient) OpenVote(ctx context.Context, videoId string, target pb.Target, duration int32, choices []*pb.VoteChoice) (*pb.OpenVoteResponse, error) {
 	request := &pb.OpenVoteRequest{
 		VideoId: videoId,
 		Target: target,
@@ -172,7 +183,7 @@ func (y *YlccClinet) OpenVote(ctx context.Context, videoId string, target pb.Tar
 	return response, nil
 }
 
-func (y *YlccClinet) GetVoteResult(ctx context.Context, voteId string) (*pb.GetVoteResultResponse, error) {
+func (y *YlccClient) GetVoteResult(ctx context.Context, voteId string) (*pb.GetVoteResultResponse, error) {
 	request := &pb.GetVoteResultRequest {
 		VoteId: voteId,
 	}
@@ -183,7 +194,7 @@ func (y *YlccClinet) GetVoteResult(ctx context.Context, voteId string) (*pb.GetV
 	return response, nil
 }
 
-func (y *YlccClinet) UpdateVoteDuration(ctx context.Context, voteId string, duration int32) (*pb.UpdateVoteDurationResponse, error) {
+func (y *YlccClient) UpdateVoteDuration(ctx context.Context, voteId string, duration int32) (*pb.UpdateVoteDurationResponse, error) {
 	request := &pb.UpdateVoteDurationRequest{
 		VoteId: voteId,
 		Duration: duration,
@@ -195,7 +206,7 @@ func (y *YlccClinet) UpdateVoteDuration(ctx context.Context, voteId string, dura
 	return response, nil
 }
 
-func (y *YlccClinet) CloseVote(ctx context.Context, voteId string) (*pb.CloseVoteResponse, error) {
+func (y *YlccClient) CloseVote(ctx context.Context, voteId string) (*pb.CloseVoteResponse, error) {
 	request := &pb.CloseVoteRequest{
 		VoteId: voteId,
 	}
@@ -206,8 +217,8 @@ func (y *YlccClinet) CloseVote(ctx context.Context, voteId string) (*pb.CloseVot
 	return response, nil
 }
 
-func NewYlccClinet(addrPort string, options ...grpc.DialOption) (*YlccClinet) {
-	return &YlccClinet{
+func NewYlccClient(addrPort string, options ...grpc.DialOption) (*YlccClient) {
+	return &YlccClient{
 		addrPort: addrPort,
 		options: options,
 		conn: nil,
