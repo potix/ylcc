@@ -1,69 +1,62 @@
 package main
 
 import (
-	"os"
-	"context"
-	"flag"
 	"fmt"
+	"io"
+	"context"
 	pb "github.com/potix/ylcc/protocol"
 	"google.golang.org/grpc"
-	"io"
-	"time"
 )
 
-func getVideo(client pb.YlccClient, videoId string) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
+type YlccClinet struct {
+	addrPort string
+	options  []grpc.DialOption
+	conn     *grpc.ClientConn
+	client   pb.YlccClient
+}
+
+func (y *YlccClinet) Dial() (error) {
+	conn, err := grpc.Dial(
+		y.addrPort,
+		y.options...,
 	)
-	defer cancel()
+	if err != nil {
+		return fmt.Errorf("can not dial")
+	}
+	y.conn = conn
+	y.client = pb.NewYlccClient(conn)
+	return nil
+}
+
+func (y *YlccClinet) GetVideo(ctx context.Context, videoId string) (*pb.GetVideoResponse, error) {
 	request := &pb.GetVideoRequest{
 		VideoId: videoId,
 	}
-	response, err := client.GetVideo(ctx, request)
+	response, err := y.client.GetVideo(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		return nil, fmt.Errorf("can not get video: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return
-	}
-	fmt.Printf("%+v\n", response.Video)
-	return
+	return response, err
 }
 
-func startCollectionActiveLiveChat(client pb.YlccClient, videoId string) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) StartCollectionActiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionActiveLiveChatResponse, error) {
 	request := &pb.StartCollectionActiveLiveChatRequest{
 		VideoId: videoId,
 	}
-	response, err := client.StartCollectionActiveLiveChat(ctx, request)
+	response, err := y.client.StartCollectionActiveLiveChat(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		return nil, fmt.Errorf("can not start collection of active live chat: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return
-	}
-	fmt.Printf("%+v\n", response.Video)
-	return
+	return response, err
 }
 
-func pollActiveLiveChat(client pb.YlccClient, videoId string) {
-	ctx := context.Background()
+func (y *YlccClinet) PollActiveLiveChat(ctx context.Context, videoId string, cbFunc func(*pb.PollActiveLiveChatResponse) (bool)) (error) {
 	request := &pb.PollActiveLiveChatRequest{
 		VideoId: videoId,
 	}
-	pollClient, err := client.PollActiveLiveChat(ctx, request)
+	pollClient, err := y.client.PollActiveLiveChat(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		return fmt.Errorf("can not create stream clinet of active live chat: %w", err)
 	}
 	for {
 		response, err := pollClient.Recv()
@@ -71,417 +64,153 @@ func pollActiveLiveChat(client pb.YlccClient, videoId string) {
 			break
 		}
 		if err != nil {
-			fmt.Printf("%v", err)
-			return
+			return fmt.Errorf("can not recieve stream of active live chat: %w", err)
 		}
-		if response.Status.Code != pb.Code_SUCCESS {
-			fmt.Printf("%v", response.Status.Message)
-			return
-		}
-		for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
-			fmt.Printf("%+v", activeLiveChatMessage)
+		if cbFunc(response) {
+			break
 		}
 	}
+	return nil
 }
 
-func getCachedActiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) GetCachedActiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetCachedActiveLiveChatResponse, error) {
 	request := &pb.GetCachedActiveLiveChatRequest{
 		VideoId: videoId,
 		Offset:  offset,
 		Count:   count,
 	}
-	response, err := client.GetCachedActiveLiveChat(ctx, request)
+	response, err := y.client.GetCachedActiveLiveChat(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return false, err
+		return nil, fmt.Errorf("can not get cache of active live chat: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return false, fmt.Errorf("%v", response.Status.Message)
-	}
-	if len(response.ActiveLiveChatMessages) == 0 {
-		return false, nil
-	}
-	for _, activeLiveChatMessage := range response.ActiveLiveChatMessages {
-		fmt.Printf("%+v\n", activeLiveChatMessage)
-	}
-	return true, nil
+	return response, nil
 }
 
-func getCachedActiveLiveChatLoop(client pb.YlccClient, videoId string) {
-	var offset int64 = 0
-	var count int64 = 2000
-	for {
-		ok, err := getCachedActiveLiveChat(client, videoId, offset, count)
-		if err != nil {
-			fmt.Printf("%v", err)
-		}
-		if !ok {
-			break
-		}
-		offset += count
-	}
-}
-
-func startCollectionArchiveLiveChat(client pb.YlccClient, videoId string) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) StartCollectionArchiveLiveChat(ctx context.Context, videoId string) (*pb.StartCollectionArchiveLiveChatResponse, error) {
 	request := &pb.StartCollectionArchiveLiveChatRequest{
 		VideoId: videoId,
 	}
-	response, err := client.StartCollectionArchiveLiveChat(ctx, request)
+	response, err := y.client.StartCollectionArchiveLiveChat(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		return nil, fmt.Errorf("can not start collection of archive live chat: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return
-	}
-	fmt.Printf("%+v\n", response.Video)
-	return
+	return response, nil
 }
 
-func getArchiveLiveChat(client pb.YlccClient, videoId string, offset int64, count int64) (bool, bool, error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) GetArchiveLiveChat(ctx context.Context, videoId string, offset int64, count int64) (*pb.GetArchiveLiveChatResponse, error) {
 	request := &pb.GetArchiveLiveChatRequest{
 		VideoId: videoId,
 		Offset:  offset,
 		Count:   count,
 	}
-	response, err := client.GetArchiveLiveChat(ctx, request)
+	response, err := y.client.GetArchiveLiveChat(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return false, false, err
+		return nil, fmt.Errorf("can not get archive live chat: %w", err)
 	}
-	if response.Status.Code == pb.Code_IN_PROGRESS {
-		return false, true, nil
-	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return false, false, fmt.Errorf("%v", response.Status.Message)
-	}
-	if len(response.ArchiveLiveChatMessages) == 0 {
-		return false, false, nil
-	}
-	for _, archiveLiveChatMessage := range response.ArchiveLiveChatMessages {
-		fmt.Printf("%+v\n", archiveLiveChatMessage)
-	}
-	return true, false, nil
+	return response, nil
 }
 
-func getArchiveLiveChatLoop(client pb.YlccClient, videoId string) {
-	var offset int64 = 0
-	var count int64 = 2000
-	for {
-		ok, retry, err := getArchiveLiveChat(client, videoId, offset, count)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		if retry {
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		if !ok {
-			break
-		}
-		offset += count
-	}
-}
-
-func startCollectionWordCloudMessages(client pb.YlccClient, videoId string) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) StartCollectionWordCloudMessages(ctx context.Context, videoId string) (*pb.StartCollectionWordCloudMessagesResponse, error) {
 	request := &pb.StartCollectionWordCloudMessagesRequest{
 		VideoId: videoId,
 	}
-	response, err := client.StartCollectionWordCloudMessages(ctx, request)
+	response, err := y.client.StartCollectionWordCloudMessages(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return
+		return nil, fmt.Errorf("can not start collection of word cloud message: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		fmt.Printf("%v", response.Status.Message)
-		return
-	}
-	fmt.Printf("%+v\n", response.Video)
-	return
+	return response, nil
 }
 
-func getWordCloud(client pb.YlccClient, videoId string) (bool, bool, error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
-	colors := make([]*pb.Color, 0, 3)
-	colors = append(colors, &pb.Color{
-		R: 234,
-		G: 112,
-		B: 124,
-		A: 255,
-	})
-	colors = append(colors, &pb.Color{
-		R: 133,
-		G: 233,
-		B: 124,
-		A: 255,
-	})
-	colors = append(colors, &pb.Color{
-		R: 122,
-		G: 125,
-		B: 240,
-		A: 255,
-	})
+func (y *YlccClinet) BuildRGBAColor(r uint32, g uint32, b uint32, a uint32) (*pb.Color) {
+	return &pb.Color{ R: r, G: g, B: b, A: a }
+}
+
+func (y *YlccClinet) BuildRGBColor(r uint32, g uint32, b uint32) (*pb.Color) {
+	return &pb.Color{ R: r, G: g, B: b, A: 255 }
+}
+
+func (y *YlccClinet) GetWordCloud(
+	ctx context.Context,
+	videoId string,
+	target pb.Target,
+	messageLimit int32,
+	fontMaxSize int32,
+	fontMinSize int32,
+	width int32,
+	height int32,
+	colors []*pb.Color,
+	backgroundColor *pb.Color) (*pb.GetWordCloudResponse, error) {
 	request := &pb.GetWordCloudRequest{
 		VideoId: videoId,
-		Target: pb.Target_ALL_USER,
-		MessageLimit: 10,
-		FontMaxSize: 64,
-		FontMinSize: 16,
-		Width: 1024,
-		Height: 512,
+		Target: target,
+		MessageLimit: messageLimit,
+		FontMaxSize: fontMaxSize,
+		FontMinSize: fontMinSize,
+		Width: width,
+		Height: height,
 		Colors: colors,
-		BackgroundColor: &pb.Color{
-			R: 255,
-			G: 255,
-			B: 255,
-			A: 128,
-		},
+		BackgroundColor: backgroundColor,
 	}
-	response, err := client.GetWordCloud(ctx, request)
+	response, err := y.client.GetWordCloud(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return false, false, err
+		return nil, fmt.Errorf("can not get word cloud: %w", err)
 	}
-	if response.Status.Code == pb.Code_IN_PROGRESS {
-		return false, true, nil
-	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		return false, false, fmt.Errorf("%v", response.Status.Message)
-	}
-	file, err := os.Create("./output.png")
-	if err != nil {
-		return false, false, fmt.Errorf("can not create file: %v", err)
-	}
-	defer file.Close()
-	_, err = file.Write(response.Data)
-	if err != nil {
-		return false, false, fmt.Errorf("can not write data to file: %v", err)
-	}
-	fmt.Printf("minetype = %v, length = %v\n", response.MimeType, len(response.Data))
-	return true, false, nil
+	return response, nil
 }
 
-func getWordCloudLoop(client pb.YlccClient, videoId string) {
-	for {
-		ok, retry, err := getWordCloud(client, videoId)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		if retry {
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		if !ok {
-			break
-		}
-		time.Sleep(5 * time.Second)
-	}
-}
-
-
-func openVote(client pb.YlccClient, videoId string) (string, error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
-	choices := make([]*pb.VoteChoice, 0, 4)
-	choices = append(choices, &pb.VoteChoice{
-		Label: "あ",
-		Choice: "ああああああ",
-	})
-	choices = append(choices, &pb.VoteChoice{
-		Label: "い",
-		Choice: "いいいいいい",
-	})
-	choices = append(choices, &pb.VoteChoice{
-		Label: "う",
-		Choice: "ううううう",
-	})
-	choices = append(choices, &pb.VoteChoice{
-		Label: "え",
-		Choice: "ええええええ",
-	})
+func (y *YlccClinet) OpenVote(ctx context.Context, videoId string, target pb.Target, duration int32, choices []*pb.VoteChoice) (*pb.OpenVoteResponse, error) {
 	request := &pb.OpenVoteRequest{
 		VideoId: videoId,
-		Target: pb.Target_ALL_USER,
-		Duration: 120,
+		Target: target,
+		Duration: duration,
 		Choices: choices,
 	}
-	response, err := client.OpenVote(ctx, request)
+	response, err := y.client.OpenVote(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return "", err
+		return nil, fmt.Errorf("can not open vote: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		return "", fmt.Errorf("%v", response.Status.Message)
-	}
-	fmt.Printf("%+v\n", response.Video)
-	return response.VoteId, nil
+	return response, nil
 }
 
-func getVoteResult(client pb.YlccClient, voteId string) (error){
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
-	request := &pb.GetVoteResultRequest{
+func (y *YlccClinet) GetVoteResult(ctx context.Context, voteId string) (*pb.GetVoteResultResponse, error) {
+	request := &pb.GetVoteResultRequest {
 		VoteId: voteId,
 	}
-	response, err := client.GetVoteResult(ctx, request)
+	response, err := y.client.GetVoteResult(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return err
+		return nil, fmt.Errorf("can not get vote result: %w", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		return fmt.Errorf("%v", response.Status.Message)
-	}
-	fmt.Printf("total: %v\n", response.Total)
-	fmt.Printf("Counts: %+v\n", response.Counts)
-	return nil
+	return response, nil
 }
 
-func updateVoteDuration(client pb.YlccClient, voteId string) (error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) UpdateVoteDuration(ctx context.Context, voteId string, duration int32) (*pb.UpdateVoteDurationResponse, error) {
 	request := &pb.UpdateVoteDurationRequest{
 		VoteId: voteId,
-		Duration: 120,
+		Duration: duration,
 	}
-	response, err := client.UpdateVoteDuration(ctx, request)
+	response, err := y.client.UpdateVoteDuration(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return err
+		return nil,fmt.Errorf("can not update duration", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		return fmt.Errorf("%v", response.Status.Message)
-	}
-	return nil
+	return response, nil
 }
 
-func closeVote(client pb.YlccClient, voteId string) (error) {
-	ctx, cancel := context.WithTimeout(
-		context.Background(),
-		60*time.Second,
-	)
-	defer cancel()
+func (y *YlccClinet) CloseVote(ctx context.Context, voteId string) (*pb.CloseVoteResponse, error) {
 	request := &pb.CloseVoteRequest{
 		VoteId: voteId,
 	}
-	response, err := client.CloseVote(ctx, request)
+	response, err := y.client.CloseVote(ctx, request)
 	if err != nil {
-		fmt.Printf("%v", err)
-		return err
+		return nil, fmt.Errorf("can not close vote", err)
 	}
-	if response.Status.Code != pb.Code_SUCCESS {
-		return fmt.Errorf("%v", response.Status.Message)
-	}
-	return nil
+	return response, nil
 }
 
-func voteLoop(client pb.YlccClient, videoId string) {
-	voteId, err := openVote(client, videoId)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
-	for i := 0; i < 10; i += 1{
-		time.Sleep(60 * time.Second)
-		err = getVoteResult(client, voteId)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-		err = updateVoteDuration(client, voteId)
-		if err != nil {
-			fmt.Printf("%v", err)
-			return
-		}
-	}
-	time.Sleep(300 * time.Second)
-	err = closeVote(client, voteId)
-	if err != nil {
-		fmt.Printf("%v", err)
-		return
-	}
-}
-
-func main() {
-	var mode string
-	var videoId string
-	var addrPort string
-	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive | wordCloud | vote>")
-	flag.StringVar(&videoId, "id", "", "<video id>")
-	flag.StringVar(&addrPort, "to", "127.0.0.1:12345", "<video id>")
-	flag.Parse()
-
-	if videoId == "" {
-		flag.Usage()
-		return
-	}
-	conn, err := grpc.Dial(
-		addrPort,
-		grpc.WithInsecure(),
-		grpc.FailOnNonTempDialError(true),
-		grpc.WithBlock(),
-	)
-	if err != nil {
-		fmt.Printf("can not create connection")
-		return
-	}
-	defer conn.Close()
-	client := pb.NewYlccClient(conn)
-	switch mode {
-	case "active":
-		getVideo(client, videoId)
-		startCollectionActiveLiveChat(client, videoId)
-		pollActiveLiveChat(client, videoId)
-	case "activeCache":
-		getVideo(client, videoId)
-		getCachedActiveLiveChatLoop(client, videoId)
-	case "archive":
-		getVideo(client, videoId)
-		startCollectionArchiveLiveChat(client, videoId)
-		getArchiveLiveChatLoop(client, videoId)
-	case "wordCloud":
-		getVideo(client, videoId)
-		startCollectionWordCloudMessages(client, videoId)
-		getWordCloudLoop(client, videoId)
-	case "vote":
-		getVideo(client, videoId)
-		voteLoop(client, videoId)
+func NewYlccClinet(addrPort string, options ...grpc.DialOption) (*YlccClinet) {
+	return &YlccClinet{
+		addrPort: addrPort,
+		options: options,
+		conn: nil,
+		client: nil,
 	}
 }
