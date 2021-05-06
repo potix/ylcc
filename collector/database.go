@@ -389,7 +389,7 @@ func (d *DatabaseOperator) UpdateArchiveLiveChatMessages(archiveLiveChatMessages
 }
 
 func (d *DatabaseOperator) DeleteArchiveLiveChatMessagesByLastUpdate(lastUpdate int) error {
-	res, err := d.db.Exec(`DELETE FROM archiveLiveChatMessage WHERE lastUpdate = ?`, lastUpdate)
+	res, err := d.db.Exec(`DELETE FROM archiveLiveChatMessage WHERE lastUpdate < ?`, lastUpdate)
 	if err != nil {
 		return fmt.Errorf("can not delete archiveLiveChatMessages: %w", err)
 	}

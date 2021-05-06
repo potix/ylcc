@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 	"strconv"
 )
 
@@ -29,6 +30,8 @@ type Collector struct {
 	publisherFinishResponseCh             chan int
 	activeLiveChatCollector               *youtubehelper.ActiveLiveChatCollector
 	archiveLiveChatCollector              *youtubehelper.ArchiveLiveChatCollector
+	cleanerFinishRequestCh                chan int
+	cleanerFinishResponseCh               chan int
 }
 
 type publishActiveLiveChatMessagesParams struct {
@@ -706,17 +709,48 @@ LAST:
 	close(c.publisherFinishResponseCh)
 }
 
+func (c *Collector) cleaner() {
+	for {
+		select {
+		case <-time.After(3600 * time.Second):
+			lastUpdate := time.Now().Unix() - (3600 * 24)
+			if err := c.dbOperator.DeleteVideoByLastUpdate(int(lastUpdate)); err != nil {
+				if c.verbose {
+					log.Printf("can not delete old video.")
+				}
+			}
+			if err := c.dbOperator.DeleteActiveLiveChatMessagesByLastUpdate(int(lastUpdate)); err != nil {
+				if c.verbose {
+					log.Printf("can not delete active live chat messages.")
+				}
+			}
+			if err := c.dbOperator.DeleteArchiveLiveChatMessagesByLastUpdate(int(lastUpdate)); err != nil {
+				if c.verbose {
+					log.Printf("can not delete archive live chat message.")
+				}
+			}
+		case <-c.cleanerFinishRequestCh:
+			goto LAST
+		}
+	}
+LAST:
+	close(c.cleanerFinishResponseCh)
+}
+
 func (c *Collector) Start() error {
 	if err := c.dbOperator.Open(); err != nil {
 		return fmt.Errorf("can not start Collector: %w", err)
 	}
 	go c.publisher()
+	go c.cleaner()
 	return nil
 }
 
 func (c *Collector) Stop() {
 	close(c.publisherFinishRequestCh)
 	<-c.publisherFinishResponseCh
+	close(c.cleanerFinishRequestCh)
+	<-c.cleanerFinishResponseCh
 }
 
 func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Collector, error) {
@@ -750,5 +784,7 @@ func NewCollector(apiKeys []string, databasePath string, opts ...Option) (*Colle
 		publisherFinishResponseCh:             make(chan int),
 		activeLiveChatCollector:               youtubehelper.NewActiveLiveChatCollector(apiKeys[0], ythVerboseOpt),
 		archiveLiveChatCollector:              youtubehelper.NewArchiveLiveChatCollector(ythVerboseOpt),
+		cleanerFinishRequestCh:                make(chan int),
+		cleanerFinishResponseCh:               make(chan int),
 	}, nil
 }
