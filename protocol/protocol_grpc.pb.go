@@ -47,6 +47,12 @@ type YlccClient interface {
 	GetVoteResult(ctx context.Context, in *GetVoteResultRequest, opts ...grpc.CallOption) (*GetVoteResultResponse, error)
 	// 配信中のライブチャットの投票を終わる
 	CloseVote(ctx context.Context, in *CloseVoteRequest, opts ...grpc.CallOption) (*CloseVoteResponse, error)
+	// 配信中のライブチャットのグループ化を開始する
+	OpenGrouping(ctx context.Context, in *OpenGroupingRequest, opts ...grpc.CallOption) (*OpenGroupingResponse, error)
+	// 配信中のライブチャットのグルーピングを終了する
+	CloseGrouping(ctx context.Context, in *CloseGroupingRequest, opts ...grpc.CallOption) (*CloseGroupingResponse, error)
+	// 収集中のライブチャットのグルーピングメッセージをリアルタイムに返す
+	PollGroupingActiveLiveChat(ctx context.Context, in *PollGroupingActiveLiveChatRequest, opts ...grpc.CallOption) (Ylcc_PollGroupingActiveLiveChatClient, error)
 }
 
 type ylccClient struct {
@@ -188,6 +194,56 @@ func (c *ylccClient) CloseVote(ctx context.Context, in *CloseVoteRequest, opts .
 	return out, nil
 }
 
+func (c *ylccClient) OpenGrouping(ctx context.Context, in *OpenGroupingRequest, opts ...grpc.CallOption) (*OpenGroupingResponse, error) {
+	out := new(OpenGroupingResponse)
+	err := c.cc.Invoke(ctx, "/ylcc/OpenGrouping", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ylccClient) CloseGrouping(ctx context.Context, in *CloseGroupingRequest, opts ...grpc.CallOption) (*CloseGroupingResponse, error) {
+	out := new(CloseGroupingResponse)
+	err := c.cc.Invoke(ctx, "/ylcc/CloseGrouping", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ylccClient) PollGroupingActiveLiveChat(ctx context.Context, in *PollGroupingActiveLiveChatRequest, opts ...grpc.CallOption) (Ylcc_PollGroupingActiveLiveChatClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Ylcc_ServiceDesc.Streams[1], "/ylcc/PollGroupingActiveLiveChat", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &ylccPollGroupingActiveLiveChatClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Ylcc_PollGroupingActiveLiveChatClient interface {
+	Recv() (*PollGroupingActiveLiveChatResponse, error)
+	grpc.ClientStream
+}
+
+type ylccPollGroupingActiveLiveChatClient struct {
+	grpc.ClientStream
+}
+
+func (x *ylccPollGroupingActiveLiveChatClient) Recv() (*PollGroupingActiveLiveChatResponse, error) {
+	m := new(PollGroupingActiveLiveChatResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // YlccServer is the server API for Ylcc service.
 // All implementations must embed UnimplementedYlccServer
 // for forward compatibility
@@ -221,6 +277,12 @@ type YlccServer interface {
 	GetVoteResult(context.Context, *GetVoteResultRequest) (*GetVoteResultResponse, error)
 	// 配信中のライブチャットの投票を終わる
 	CloseVote(context.Context, *CloseVoteRequest) (*CloseVoteResponse, error)
+	// 配信中のライブチャットのグループ化を開始する
+	OpenGrouping(context.Context, *OpenGroupingRequest) (*OpenGroupingResponse, error)
+	// 配信中のライブチャットのグルーピングを終了する
+	CloseGrouping(context.Context, *CloseGroupingRequest) (*CloseGroupingResponse, error)
+	// 収集中のライブチャットのグルーピングメッセージをリアルタイムに返す
+	PollGroupingActiveLiveChat(*PollGroupingActiveLiveChatRequest, Ylcc_PollGroupingActiveLiveChatServer) error
 	mustEmbedUnimplementedYlccServer()
 }
 
@@ -263,6 +325,15 @@ func (UnimplementedYlccServer) GetVoteResult(context.Context, *GetVoteResultRequ
 }
 func (UnimplementedYlccServer) CloseVote(context.Context, *CloseVoteRequest) (*CloseVoteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CloseVote not implemented")
+}
+func (UnimplementedYlccServer) OpenGrouping(context.Context, *OpenGroupingRequest) (*OpenGroupingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OpenGrouping not implemented")
+}
+func (UnimplementedYlccServer) CloseGrouping(context.Context, *CloseGroupingRequest) (*CloseGroupingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CloseGrouping not implemented")
+}
+func (UnimplementedYlccServer) PollGroupingActiveLiveChat(*PollGroupingActiveLiveChatRequest, Ylcc_PollGroupingActiveLiveChatServer) error {
+	return status.Errorf(codes.Unimplemented, "method PollGroupingActiveLiveChat not implemented")
 }
 func (UnimplementedYlccServer) mustEmbedUnimplementedYlccServer() {}
 
@@ -496,6 +567,63 @@ func _Ylcc_CloseVote_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Ylcc_OpenGrouping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OpenGroupingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(YlccServer).OpenGrouping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ylcc/OpenGrouping",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(YlccServer).OpenGrouping(ctx, req.(*OpenGroupingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ylcc_CloseGrouping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseGroupingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(YlccServer).CloseGrouping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/ylcc/CloseGrouping",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(YlccServer).CloseGrouping(ctx, req.(*CloseGroupingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ylcc_PollGroupingActiveLiveChat_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(PollGroupingActiveLiveChatRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(YlccServer).PollGroupingActiveLiveChat(m, &ylccPollGroupingActiveLiveChatServer{stream})
+}
+
+type Ylcc_PollGroupingActiveLiveChatServer interface {
+	Send(*PollGroupingActiveLiveChatResponse) error
+	grpc.ServerStream
+}
+
+type ylccPollGroupingActiveLiveChatServer struct {
+	grpc.ServerStream
+}
+
+func (x *ylccPollGroupingActiveLiveChatServer) Send(m *PollGroupingActiveLiveChatResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 // Ylcc_ServiceDesc is the grpc.ServiceDesc for Ylcc service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -547,11 +675,24 @@ var Ylcc_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CloseVote",
 			Handler:    _Ylcc_CloseVote_Handler,
 		},
+		{
+			MethodName: "OpenGrouping",
+			Handler:    _Ylcc_OpenGrouping_Handler,
+		},
+		{
+			MethodName: "CloseGrouping",
+			Handler:    _Ylcc_CloseGrouping_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "PollActiveLiveChat",
 			Handler:       _Ylcc_PollActiveLiveChat_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "PollGroupingActiveLiveChat",
+			Handler:       _Ylcc_PollGroupingActiveLiveChat_Handler,
 			ServerStreams: true,
 		},
 	},
