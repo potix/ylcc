@@ -217,6 +217,54 @@ func (y *YlccClient) CloseVote(ctx context.Context, voteId string) (*pb.CloseVot
 	return response, nil
 }
 
+func (y *YlccClient) OpenGrouping(ctx context.Context, videoId string, target pb.Target, choices []*pb.GroupingChoice) (*pb.OpenGroupingResponse, error) {
+	request := &pb.OpenGroupingRequest{
+		VideoId: videoId,
+		Target: target,
+		Choices: choices,
+	}
+	response, err := y.client.OpenGrouping(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("can not open grouping: %w", err)
+	}
+	return response, nil
+}
+
+func (y *YlccClient) CloseGrouping(ctx context.Context, groupingId string) (*pb.CloseGroupingResponse, error) {
+	request := &pb.CloseGroupingRequest{
+		GroupingId: groupingId,
+	}
+	response, err := y.client.CloseGrouping(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("can not close vote", err)
+	}
+	return response, nil
+}
+
+func (y *YlccClient) PollGroupingActiveLiveChat(ctx context.Context, groupingId string, cbFunc func(*pb.PollGroupingActiveLiveChatResponse) (bool)) (error) {
+	request := &pb.PollGroupingActiveLiveChatRequest{
+		GroupingId: groupingId,
+	}
+	pollClient, err := y.client.PollGroupingActiveLiveChat(ctx, request)
+	if err != nil {
+		return fmt.Errorf("can not create stream client of active live chat: %w", err)
+	}
+	for {
+		response, err := pollClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("can not recieve stream of active live chat: %w", err)
+		}
+		if cbFunc(response) {
+			break
+		}
+	}
+	return nil
+}
+
+
 func NewYlccClient(addrPort string, options ...grpc.DialOption) (*YlccClient) {
 	return &YlccClient{
 		addrPort: addrPort,
