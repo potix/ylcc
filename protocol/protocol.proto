@@ -37,6 +37,15 @@ service ylcc {
 	rpc GetVoteResult (GetVoteResultRequest) returns (GetVoteResultResponse) {}
 	// 配信中のライブチャットの投票を終わる
 	rpc CloseVote (CloseVoteRequest) returns (CloseVoteResponse) {}
+
+
+	// 配信中のライブチャットのグループ化を開始する
+	rpc OpenGrouping (OpenGroupingRequest) returns (OpenGroupingResponse) {}
+	// 配信中のライブチャットのグルーピングを終了する
+	rpc CloseGrouping (CloseGroupingRequest) returns (CloseGroupingResponse) {}
+	// 収集中のライブチャットのグルーピングメッセージをリアルタイムに返す
+	rpc PollGroupingActiveLiveChat (PollGroupingActiveLiveChatRequest) returns (stream PollGroupingActiveLiveChatResponse) {}
+
 }
 
 enum Code {
@@ -238,7 +247,8 @@ message UpdateVoteDurationResponse {
 
 message VoteCount {
 	string label = 1;
-	int32 count = 2;
+	string choice = 2;
+	int32 count = 3;
 }
 
 message GetVoteResultRequest {
@@ -261,3 +271,43 @@ message CloseVoteResponse {
 
 
 
+message GroupingActiveLiveChatMessage {
+	int32  groupIdx = 1;
+	string label = 2;
+	string choice = 3;
+	ActiveLiveChatMessage activeLiveChatMessage = 4;
+}
+
+message GroupingChoice {
+	string label = 1;
+	string choice = 2;
+}
+
+message OpenGroupingRequest {
+	string videoId = 1;
+	Target target = 2;
+	repeated GroupingChoice choices = 4;
+}
+
+message OpenGroupingResponse {
+	Status status = 1;
+	string groupingId = 2;
+	Video video = 3;
+}
+
+message CloseGroupingRequest {
+	string groupingId = 1;
+}
+
+message CloseGroupingResponse {
+	Status status = 1;
+}
+
+message PollGroupingActiveLiveChatRequest {
+	string groupingId = 1;
+}
+
+message PollGroupingActiveLiveChatResponse {
+	Status status = 1;
+	GroupingActiveLiveChatMessage groupingActiveLiveChatMessage = 2;
+}

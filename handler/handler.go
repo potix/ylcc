@@ -58,7 +58,10 @@ func (h *Handler) StartCollectionActiveLiveChat(ctx context.Context, request *pb
 }
 
 func (h *Handler) PollActiveLiveChat(request *pb.PollActiveLiveChatRequest, server pb.Ylcc_PollActiveLiveChatServer) error {
-	subscribeActiveLiveChatParams := h.collector.SubscribeActiveLiveChat(request.VideoId)
+	subscribeActiveLiveChatParams, err := h.collector.SubscribeActiveLiveChat(request.VideoId)
+	if err != nil {
+		return fmt.Errorf("can not subscribe: %w", err)
+	}
 	defer h.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
 	for {
 		response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh()

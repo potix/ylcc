@@ -116,12 +116,12 @@ func (c *Collector) unregisterRequestedVideoForArchiveLiveChat(videoId string) b
 func (c *Collector) collectActiveLiveChatFromYoutube(video *youtube.Video, youtubeService *youtube.Service) {
 	params, err := c.activeLiveChatCollector.CreateParams(video)
 	if err != nil {
+		c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 		c.publishActiveLiveChatCh <- &publishActiveLiveChatMessagesParams{
 			err:                    err,
 			videoId:                video.Id,
 			activeLiveChatMessages: nil,
 		}
-		c.unregisterRequestedVideoForActiveLiveChat(video.Id)
 		log.Printf("can not create params of active live chat collector: %v\n", err)
 		return
 	}
@@ -623,13 +623,17 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 	}, nil
 }
 
-func (c *Collector) SubscribeActiveLiveChat(videoId string) *subscribeActiveLiveChatParams {
+func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiveChatParams, error) {
+	progress := c.checkRequestedVideoForArchiveLiveChat(videoId)
+	if !progress {
+		return nil, fmt.Errorf("no requested (videoId = %v)", videoId)
+	}
 	subscribeActiveLiveChatParams := &subscribeActiveLiveChatParams{
 		videoId:      videoId,
 		subscriberCh: make(chan *pb.PollActiveLiveChatResponse),
 	}
 	c.subscribeActiveLiveChatCh <- subscribeActiveLiveChatParams
-	return subscribeActiveLiveChatParams
+	return subscribeActiveLiveChatParams, nil
 }
 
 func (c *Collector) UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
@@ -678,6 +682,13 @@ func (c *Collector) publisher() {
 				activeLiveChatSubscribers[videoId] = videoSubscribers
 				break
 			}
+			_, ok = activeLiveChatSubscribers[videoId][subscriberCh]
+			if ok {
+				if c.verbose {
+					log.Printf("already subscribed for active live chat. (videoId = %v, subscriberCh = %v)", videoId, subscriberCh)
+					break
+				}
+			}
 			activeLiveChatSubscribers[videoId][subscriberCh] = true
 		case subscribeActiveLiveChatParams := <-c.unsubscribeActiveLiveChatCh:
 			videoId := subscribeActiveLiveChatParams.videoId
@@ -692,7 +703,7 @@ func (c *Collector) publisher() {
 			_, ok = videoSubscribers[subscriberCh]
 			if !ok {
 				if c.verbose {
-					log.Printf("no subscriber for active live chat. no subscriber channel. (videoId = %v, subscriberCh = %v)", videoId, subscriberCh)
+					log.Printf("no subscriber for active live chat. no subscriberCh (videoId = %v, subscriberCh = %v)", videoId, subscriberCh)
 				}
 				break
 			}
