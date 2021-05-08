@@ -52,6 +52,9 @@ func (s *subscribeActiveLiveChatParams) GetSubscriberCh() chan *pb.PollActiveLiv
 func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
+	if c.verbose {
+		log.Printf("register requested video fot active live chat (videoId = %v)", videoId)
+	}
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if ok {
 		return false
@@ -73,6 +76,9 @@ func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) bool {
 func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
+	if c.verbose {
+		log.Printf("unregister requested video fot active live chat (videoId = %v)", videoId)
+	}
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if !ok {
 		return false
@@ -624,7 +630,7 @@ func (c *Collector) GetArchiveLiveChat(request *pb.GetArchiveLiveChatRequest) (*
 }
 
 func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiveChatParams, error) {
-	progress := c.checkRequestedVideoForArchiveLiveChat(videoId)
+	progress := c.checkRequestedVideoForActiveLiveChat(videoId)
 	if !progress {
 		return nil, fmt.Errorf("no requested (videoId = %v)", videoId)
 	}
