@@ -38,14 +38,12 @@ service ylcc {
 	// 配信中のライブチャットの投票を終わる
 	rpc CloseVote (CloseVoteRequest) returns (CloseVoteResponse) {}
 
-
 	// 配信中のライブチャットのグループ化を開始する
 	rpc OpenGrouping (OpenGroupingRequest) returns (OpenGroupingResponse) {}
 	// 配信中のライブチャットのグルーピングを終了する
 	rpc CloseGrouping (CloseGroupingRequest) returns (CloseGroupingResponse) {}
 	// 収集中のライブチャットのグルーピングメッセージをリアルタイムに返す
 	rpc PollGroupingActiveLiveChat (PollGroupingActiveLiveChatRequest) returns (stream PollGroupingActiveLiveChatResponse) {}
-
 }
 
 enum Code {
@@ -268,8 +266,6 @@ message CloseVoteRequest {
 message CloseVoteResponse {
 	Status status = 1;
 }
-
-
 
 message GroupingActiveLiveChatMessage {
 	int32  groupIdx = 1;
