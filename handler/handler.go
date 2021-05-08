@@ -110,6 +110,31 @@ func (h *Handler) CloseVote(ctx context.Context, request *pb.CloseVoteRequest) (
 	return h.processor.CloseVote(request)
 }
 
+func (h *Handler) OpenGrouping(ctx context.Context, request *pb.OpenGroupingRequest)  (*pb.OpenGroupingResponse, error) {
+	return h.processor.OpenGrouping(request)
+}
+
+func (h *Handler) CloseGrouping(ctx context.Context, request *pb.CloseGroupingRequest) (*pb.CloseGroupingResponse, error) {
+	return h.processor.CloseGrouping(request)
+}
+
+func (h *Handler) PollGroupingActiveLiveChat(request *pb.PollGroupingActiveLiveChatRequest, server pb.Ylcc_PollGroupingActiveLiveChatServer) error {
+	subscribeGroupingActiveLiveChatParams, err := h.processor.SubscribeGroupingActiveLiveChat(request.GroupingId)
+	if err != nil {
+		return fmt.Errorf("can not subscribe: %w", err)
+	}
+	defer h.processor.UnsubscribeGroupingActiveLiveChat(subscribeGroupingActiveLiveChatParams)
+	for {
+		response, ok := <-subscribeGroupingActiveLiveChatParams.GetSubscriberCh()
+		if !ok {
+			return nil
+		}
+		if err := server.Send(response); err != nil {
+			return fmt.Errorf("can not send response: %w", err)
+		}
+	}
+}
+
 func NewHandler(processor *processor.Processor, collector *collector.Collector, opts ...Option) *Handler {
 	baseOpts :=  defaultOptions()
 	for _, opt := range opts {
