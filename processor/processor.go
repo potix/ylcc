@@ -593,17 +593,6 @@ func (p *Processor) CloseVote(request *pb.CloseVoteRequest) (*pb.CloseVoteRespon
         }, nil
 }
 
-
-
-
-
-
-
-
-
-
-
-
 type groupingContext struct {
 	groupingId                          string
 	videoId                             string
@@ -937,25 +926,6 @@ func (p *Processor) UnsubscribeGroupingActiveLiveChat(subscribeGroupingActiveLiv
 	}
         groupingCtx.unsubscribeGroupingActiveLiveChatCh <- subscribeGroupingActiveLiveChatParams
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {
 	baseOpts := defaultOptions()
