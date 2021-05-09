@@ -39,9 +39,7 @@ service ylcc {
 	rpc CloseVote (CloseVoteRequest) returns (CloseVoteResponse) {}
 
 	// 配信中のライブチャットのグループ化を開始する
-	rpc OpenGrouping (OpenGroupingRequest) returns (OpenGroupingResponse) {}
-	// 配信中のライブチャットのグルーピングを終了する
-	rpc CloseGrouping (CloseGroupingRequest) returns (CloseGroupingResponse) {}
+	rpc StartGroupingActiveLiveChat (StartGroupingActiveLiveChatRequest) returns (StartGroupingActiveLiveChatResponse) {}
 	// 収集中のライブチャットのグルーピングメッセージをリアルタイムに返す
 	rpc PollGroupingActiveLiveChat (PollGroupingActiveLiveChatRequest) returns (stream PollGroupingActiveLiveChatResponse) {}
 }
@@ -279,24 +277,16 @@ message GroupingChoice {
 	string choice = 2;
 }
 
-message OpenGroupingRequest {
+message StartGroupingActiveLiveChatRequest {
 	string videoId = 1;
 	Target target = 2;
-	repeated GroupingChoice choices = 4;
+	repeated GroupingChoice choices = 3;
 }
 
-message OpenGroupingResponse {
+message StartGroupingActiveLiveChatResponse {
 	Status status = 1;
 	string groupingId = 2;
 	Video video = 3;
-}
-
-message CloseGroupingRequest {
-	string groupingId = 1;
-}
-
-message CloseGroupingResponse {
-	Status status = 1;
 }
 
 message PollGroupingActiveLiveChatRequest {

@@ -251,10 +251,10 @@ func openVote(client *client.YlccClient, videoId string) (string, error) {
 	)
 	defer cancel()
 	choices := make([]*pb.VoteChoice, 0, 4)
-	choices = append(choices, client.BuildChoice("あ", "ああああああ"))
-	choices = append(choices, client.BuildChoice("い", "いいいいいい"))
-	choices = append(choices, client.BuildChoice("う", "ううううう"))
-	choices = append(choices, client.BuildChoice("え", "ええええええ"))
+	choices = append(choices, client.BuildVoteChoice("あ", "ああああああ"))
+	choices = append(choices, client.BuildVoteChoice("い", "いいいいいい"))
+	choices = append(choices, client.BuildVoteChoice("う", "ううううう"))
+	choices = append(choices, client.BuildVoteChoice("え", "ええええええ"))
 	response, err := client.OpenVote(ctx, videoId, pb.Target_ALL_USER, 120, choices)
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -347,11 +347,76 @@ func voteLoop(client *client.YlccClient, videoId string) {
 	}
 }
 
+
+
+
+
+
+
+
+func startGroupingActiveLiveChat(client *client.YlccClient, videoId string) (string, error) {
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		60 * time.Second,
+	)
+	defer cancel()
+	choices := make([]*pb.GroupingChoice, 0, 4)
+	choices = append(choices, client.BuildGroupingChoice("あ", "ああああああ"))
+	choices = append(choices, client.BuildGroupingChoice("い", "いいいいいい"))
+	choices = append(choices, client.BuildGroupingChoice("う", "ううううう"))
+	choices = append(choices, client.BuildGroupingChoice("え", "ええええええ"))
+	response, err := client.StartGroupingActiveLiveChat(ctx, videoId, pb.Target_ALL_USER, choices)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return "", err
+	}
+	if response.Status.Code != pb.Code_SUCCESS {
+		return "", fmt.Errorf("%v", response.Status.Message)
+	}
+	fmt.Printf("groupingId = %+v\n", response.GroupingId)
+	fmt.Printf("video = %+v\n", response.Video)
+	return response.GroupingId, nil
+}
+
+func pollGroupingActiveLiveChat(client *client.YlccClient, groupingId string) {
+	cnt := 0
+	ctx := context.Background()
+	err := client.PollGroupingActiveLiveChat(ctx, groupingId, func(response *pb.PollGroupingActiveLiveChatResponse)(bool) {
+		if response.Status.Code != pb.Code_SUCCESS {
+			fmt.Printf("%v", response.Status.Message)
+			return true
+		}
+		fmt.Printf("%v %v %v %+v\n",
+			response.GroupingActiveLiveChatMessage.GroupIdx,
+			response.GroupingActiveLiveChatMessage.Label,
+			response.GroupingActiveLiveChatMessage.Choice,
+			response.GroupingActiveLiveChatMessage.ActiveLiveChatMessage)
+		if cnt > 100 {
+			return true
+		}
+		cnt += 1
+		return false
+	})
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+}
+
+func grouping(client *client.YlccClient, videoId string) {
+	groupingId, err := startGroupingActiveLiveChat(client, videoId)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return
+	}
+	pollGroupingActiveLiveChat(client, groupingId)
+}
+
 func main() {
 	var mode string
 	var videoId string
 	var addrPort string
-	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive | wordCloud | vote>")
+	flag.StringVar(&mode, "mode", "active", "<active | activeCache | archive | wordCloud | vote | grouping>")
 	flag.StringVar(&videoId, "id", "", "<video id>")
 	flag.StringVar(&addrPort, "to", "127.0.0.1:12345", "<video id>")
 	flag.Parse()
@@ -390,5 +455,8 @@ func main() {
 	case "vote":
 		getVideo(client, videoId)
 		voteLoop(client, videoId)
+	case "grouping":
+		getVideo(client, videoId)
+		grouping(client, videoId)
 	}
 }

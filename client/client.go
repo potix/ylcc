@@ -162,7 +162,7 @@ func (y *YlccClient) GetWordCloud(
 	return response, nil
 }
 
-func (y *YlccClient) BuildChoice(label string, choice string) (*pb.VoteChoice) {
+func (y *YlccClient) BuildVoteChoice(label string, choice string) (*pb.VoteChoice) {
 	return &pb.VoteChoice {
 		Label: label,
 		Choice: choice,
@@ -217,26 +217,22 @@ func (y *YlccClient) CloseVote(ctx context.Context, voteId string) (*pb.CloseVot
 	return response, nil
 }
 
-func (y *YlccClient) OpenGrouping(ctx context.Context, videoId string, target pb.Target, choices []*pb.GroupingChoice) (*pb.OpenGroupingResponse, error) {
-	request := &pb.OpenGroupingRequest{
+func (y *YlccClient) BuildGroupingChoice(label string, choice string) (*pb.GroupingChoice) {
+	return &pb.GroupingChoice {
+		Label: label,
+		Choice: choice,
+	}
+}
+
+func (y *YlccClient) StartGroupingActiveLiveChat(ctx context.Context, videoId string, target pb.Target, choices []*pb.GroupingChoice) (*pb.StartGroupingActiveLiveChatResponse, error) {
+	request := &pb.StartGroupingActiveLiveChatRequest{
 		VideoId: videoId,
 		Target: target,
 		Choices: choices,
 	}
-	response, err := y.client.OpenGrouping(ctx, request)
+	response, err := y.client.StartGroupingActiveLiveChat(ctx, request)
 	if err != nil {
-		return nil, fmt.Errorf("can not open grouping: %w", err)
-	}
-	return response, nil
-}
-
-func (y *YlccClient) CloseGrouping(ctx context.Context, groupingId string) (*pb.CloseGroupingResponse, error) {
-	request := &pb.CloseGroupingRequest{
-		GroupingId: groupingId,
-	}
-	response, err := y.client.CloseGrouping(ctx, request)
-	if err != nil {
-		return nil, fmt.Errorf("can not close vote", err)
+		return nil, fmt.Errorf("can not start grouping: %w", err)
 	}
 	return response, nil
 }

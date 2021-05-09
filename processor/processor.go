@@ -199,6 +199,7 @@ func (p *Processor) StartCollectionWordCloudMessages(request *pb.StartCollection
 			Video: nil,
 		}, nil
 	}
+	// XXX if startCollectionActiveLiveChatResponse.Status.Code == pb.Code_IN_PROGRESS: getVideo
 	go p.storeWordCloudMessages(request.VideoId)
 	status.Code = pb.Code_SUCCESS
         status.Message = fmt.Sprintf("success (videoId = %v)", request.VideoId)
@@ -524,6 +525,7 @@ func (p *Processor) OpenVote(request *pb.OpenVoteRequest) (*pb.OpenVoteResponse,
 			Video: nil,
 		}, nil
 	}
+	// XXX if startCollectionActiveLiveChatResponse.Status.Code == pb.Code_IN_PROGRESS: getVideo
 	p.registerRequestedVote(voteCtx)
 	go p.voteWatcher(voteCtx)
 	status.Code = pb.Code_SUCCESS
@@ -593,54 +595,98 @@ func (p *Processor) CloseVote(request *pb.CloseVoteRequest) (*pb.CloseVoteRespon
         }, nil
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 type groupingContext struct {
 	groupingId                          string
 	videoId                             string
 	target                              pb.Target
 	choices                             []*pb.GroupingChoice
-	watcherCloseEventCh                 chan int
-	watcherDoneNotifyCh                 chan int
-	publisherCloseEventCh               chan int
 	group                               map[string]int
-	publishGroupingActiveLiveChatCh     chan *publishGroupingActiveLiveChatMessagesParams
-	subscribeGroupingActiveLiveChatCh   chan *subscribeGroupingActiveLiveChatParams
-	unsubscribeGroupingActiveLiveChatCh chan *subscribeGroupingActiveLiveChatParams
+	watcherCloseEventCh                 chan int
+	subscriberCh                        chan *pb.PollGroupingActiveLiveChatResponse
 }
 
 func (g *groupingContext) emitWatcherCloseEvent() {
 	close(g.watcherCloseEventCh)
-	<-g.watcherDoneNotifyCh
 }
 
-func (g *groupingContext) emitPublisherCloseEvent() {
-	close(g.publisherCloseEventCh)
-}
-
-type subscribeGroupingActiveLiveChatParams struct {
-	groupingId   string
-	subscriberCh chan *pb.PollGroupingActiveLiveChatResponse
-}
-
-func (s *subscribeGroupingActiveLiveChatParams) GetSubscriberCh() chan *pb.PollGroupingActiveLiveChatResponse {
-        return s.subscriberCh
-}
-
-type publishGroupingActiveLiveChatMessagesParams struct {
-        err                            error
-        groupingId                     string
-        groupingActiveLiveChatMessage  *pb.GroupingActiveLiveChatMessage
+func (g *groupingContext) GetSubscriberCh() chan *pb.PollGroupingActiveLiveChatResponse {
+        return g.subscriberCh
 }
 
 func (p *Processor) registerRequestedGrouping(groupingCtx *groupingContext) {
 	p.requestedGroupingMutex.Lock()
 	defer p.requestedGroupingMutex.Unlock()
+	_, ok := p.requestedGrouping[groupingCtx.groupingId]
+	if ok {
+		log.Printf("already exists groupingId (groupingId = %v)", groupingCtx.groupingId)
+		return
+	}
 	p.requestedGrouping[groupingCtx.groupingId] = groupingCtx
 }
 
 func (p *Processor) unregisterRequestedGrouping(groupingCtx *groupingContext) {
 	p.requestedGroupingMutex.Lock()
 	defer p.requestedGroupingMutex.Unlock()
-	delete(p.requestedGrouping, groupingCtx.groupingId)
+	_, ok := p.requestedGrouping[groupingCtx.groupingId]
+	if !ok {
+		log.Printf("not found groupingId (groupingId = %v)", groupingCtx.groupingId)
+		return
+	}
+        delete(p.requestedGrouping, groupingCtx.groupingId)
 }
 
 func (p *Processor) getRequestedGrouping(groupingId string) (*groupingContext, bool) {
@@ -651,13 +697,15 @@ func (p *Processor) getRequestedGrouping(groupingId string) (*groupingContext, b
 }
 
 func (p *Processor) popRequestedGrouping(groupingId string) (*groupingContext, bool) {
-	p.requestedGroupingMutex.Lock()
-	defer p.requestedGroupingMutex.Unlock()
-	groupingCtx, ok := p.requestedGrouping[groupingId]
-	if ok {
-		delete(p.requestedGrouping, groupingId)
+        p.requestedGroupingMutex.Lock()
+        defer p.requestedGroupingMutex.Unlock()
+        groupingCtx, ok := p.requestedGrouping[groupingId]
+        if !ok {
+		log.Printf("not found groupingId (groupingId = %v)", groupingId)
+		return groupingCtx, ok
 	}
-	return groupingCtx, ok
+        delete(p.requestedGrouping, groupingId)
+        return groupingCtx, ok
 }
 
 func (p *Processor) createGroupingId() (string, error) {
@@ -669,7 +717,7 @@ func (p *Processor) createGroupingId() (string, error) {
 	return fmt.Sprintf("%v-%x", u.String(), s), nil
 }
 
-func (p *Processor) createGroupingContext(request *pb.OpenGroupingRequest) (*groupingContext, error) {
+func (p *Processor) createGroupingContext(request *pb.StartGroupingActiveLiveChatRequest) (*groupingContext, error) {
 	groupingId, err:= p.createGroupingId()
 	if err != nil {
 		return nil, fmt.Errorf("can not create grouping id: %w", err)
@@ -682,20 +730,16 @@ func (p *Processor) createGroupingContext(request *pb.OpenGroupingRequest) (*gro
 		videoId:                          request.VideoId,
 		target:                           request.Target,
 		choices:                          request.Choices,
-		watcherCloseEventCh:              make(chan int),
-		watcherDoneNotifyCh:              make(chan int),
-		publisherCloseEventCh:            make(chan int),
 		group:                            make(map[string]int),
-		publishGroupingActiveLiveChatCh:  make(chan *publishGroupingActiveLiveChatMessagesParams),
-		subscribeGroupingActiveLiveChatCh:   make(chan *subscribeGroupingActiveLiveChatParams),
-		unsubscribeGroupingActiveLiveChatCh: make(chan *subscribeGroupingActiveLiveChatParams),
+		watcherCloseEventCh:              make(chan int),
+		subscriberCh:                     make(chan *pb.PollGroupingActiveLiveChatResponse),
 	}
 	return groupingCtx, nil
 }
 
 func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 	if p.verbose {
-		log.Printf("grouping watch start (groupingId = %v)", groupingCtx.groupingId)
+		log.Printf("start grouping watch (groupingId = %v)", groupingCtx.groupingId)
 	}
 	subscribeActiveLiveChatParams, err := p.collector.SubscribeActiveLiveChat(groupingCtx.videoId)
 	if err != nil {
@@ -703,20 +747,18 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 		if p.verbose {
 			log.Printf("can not subsctibe (groupingId = %v)", groupingCtx.groupingId)
 		}
+		return
 	}
 	defer p.collector.UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams)
 	for {
 		select {
 		case response, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh():
 			if !ok {
+				// groupingContextの登録を解除してからハンドラののチャンネル読み出しを終了させる
 				p.unregisterRequestedGrouping(groupingCtx)
-				groupingCtx.publishGroupingActiveLiveChatCh <- &publishGroupingActiveLiveChatMessagesParams{
-					err: fmt.Errorf("closed channel"),
-					groupingId: groupingCtx.groupingId,
-					groupingActiveLiveChatMessage: nil,
-				}
+				close(groupingCtx.subscriberCh)
 				if p.verbose {
-					log.Printf("grouping watch end (groupingId = %v)", groupingCtx.groupingId)
+					log.Printf("end grouping watch (groupingId = %v)", groupingCtx.groupingId)
 				}
 				return
 			}
@@ -726,15 +768,18 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 				}
 				groupIdx, ok := groupingCtx.group[activeLiveChatMessage.AuthorChannelId]
 				if ok {
-					groupingCtx.publishGroupingActiveLiveChatCh <- &publishGroupingActiveLiveChatMessagesParams{
-						err: nil,
-						groupingId: groupingCtx.groupingId,
-						groupingActiveLiveChatMessage: &pb.GroupingActiveLiveChatMessage {
-							GroupIdx: int32(groupIdx),
-							Label: groupingCtx.choices[groupIdx].Label,
-							Choice: groupingCtx.choices[groupIdx].Choice,
-							ActiveLiveChatMessage: activeLiveChatMessage,
+					// already grouping
+                                        groupingCtx.subscriberCh <- &pb.PollGroupingActiveLiveChatResponse{
+						Status: &pb.Status{
+							Code:    pb.Code_SUCCESS,
+							Message: fmt.Sprintf("success (groupingId = %v)", groupingCtx.groupingId),
 						},
+						GroupingActiveLiveChatMessage: &pb.GroupingActiveLiveChatMessage {
+                                                        GroupIdx: int32(groupIdx),
+                                                        Label: groupingCtx.choices[groupIdx].Label,
+                                                        Choice: groupingCtx.choices[groupIdx].Choice,
+                                                        ActiveLiveChatMessage: activeLiveChatMessage,
+                                                },
 					}
 					continue
 				}
@@ -764,91 +809,41 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 					// not match label
 					continue
 				}
+				// new grouping
 				sort.Slice(matches , func(i, j int) bool { return matches[i].messageIdx < matches[j].messageIdx })
 				m := matches[0]
 				groupIdx = m.choiceIdx
 				groupingCtx.group[activeLiveChatMessage.AuthorChannelId] = groupIdx
-				groupingCtx.publishGroupingActiveLiveChatCh <- &publishGroupingActiveLiveChatMessagesParams{
-					err: nil,
-					groupingId: groupingCtx.groupingId,
-					groupingActiveLiveChatMessage: &pb.GroupingActiveLiveChatMessage {
-						GroupIdx: int32(groupIdx),
-						Label: groupingCtx.choices[groupIdx].Label,
+				groupingCtx.subscriberCh <- &pb.PollGroupingActiveLiveChatResponse{
+					Status: &pb.Status{
+						Code:    pb.Code_SUCCESS,
+						Message: fmt.Sprintf("success (groupingId = %v)", groupingCtx.groupingId),
+					},
+					GroupingActiveLiveChatMessage: &pb.GroupingActiveLiveChatMessage {
+                                                GroupIdx: int32(groupIdx),
+                                                Label: groupingCtx.choices[groupIdx].Label,
 						Choice: groupingCtx.choices[groupIdx].Choice,
 						ActiveLiveChatMessage: activeLiveChatMessage,
 					},
 				}
 			}
 		case <-groupingCtx.watcherCloseEventCh:
+			close(groupingCtx.subscriberCh)
 			if p.verbose {
-				log.Printf("grouping watch end (groupingId = %v)", groupingCtx.groupingId)
+				log.Printf("end grouping watch (groupingId = %v)", groupingCtx.groupingId)
 			}
-			close(groupingCtx.watcherDoneNotifyCh)
 			return
 		}
 	}
 }
 
-func (p *Processor) groupingPublisher(groupingCtx *groupingContext) {
-        groupingActiveLiveChatSubscribers := make(map[chan *pb.PollGroupingActiveLiveChatResponse]bool)
-        for {
-                select {
-                case publishGroupingActiveLiveChatMessagesParams := <-groupingCtx.publishGroupingActiveLiveChatCh:
-                        err := publishGroupingActiveLiveChatMessagesParams.err
-                        groupingId := publishGroupingActiveLiveChatMessagesParams.groupingId
-                        groupingActiveLiveChatMessage := publishGroupingActiveLiveChatMessagesParams.groupingActiveLiveChatMessage
-                        if err != nil {
-                                for subscriberCh := range groupingActiveLiveChatSubscribers {
-                                        delete(groupingActiveLiveChatSubscribers, subscriberCh)
-                                        close(subscriberCh)
-                                }
-                                return
-                        }
-                        for subscriberCh := range groupingActiveLiveChatSubscribers {
-                                subscriberCh <- &pb.PollGroupingActiveLiveChatResponse{
-                                        Status: &pb.Status{
-                                                Code:    pb.Code_SUCCESS,
-                                                Message: fmt.Sprintf("success (groupingId = %v)", groupingId),
-                                        },
-                                        GroupingActiveLiveChatMessage: groupingActiveLiveChatMessage,
-                                }
-                        }
-                case subscribeGroupingActiveLiveChatParams := <-groupingCtx.subscribeGroupingActiveLiveChatCh:
-                        groupingId := subscribeGroupingActiveLiveChatParams.groupingId
-                        subscriberCh := subscribeGroupingActiveLiveChatParams.subscriberCh
-			_ , ok := groupingActiveLiveChatSubscribers[subscriberCh]
-			if ok {
-                                if p.verbose {
-                                        log.Printf("already subscribed fot grouping active live chat. (groupingId = %v, subscriberCh = %v)", groupingId, subscriberCh)
-                                }
-				break
-			}
-                        groupingActiveLiveChatSubscribers[subscriberCh] = true
-                case subscribeGroupingActiveLiveChatParams := <-groupingCtx.unsubscribeGroupingActiveLiveChatCh:
-                        groupingId := subscribeGroupingActiveLiveChatParams.groupingId
-                        subscriberCh := subscribeGroupingActiveLiveChatParams.subscriberCh
-			_, ok := groupingActiveLiveChatSubscribers[subscriberCh]
-                        if !ok {
-                                if p.verbose {
-                                        log.Printf("no subscriber for grouping active live chat. (groupingId = %v, subscriberCh = %v)", groupingId, subscriberCh)
-                                }
-                                break
-                        }
-                        delete(groupingActiveLiveChatSubscribers, subscriberCh)
-                        close(subscriberCh)
-                case <-groupingCtx.publisherCloseEventCh:
-                        return
-                }
-        }
-}
-
-func (p *Processor) OpenGrouping(request *pb.OpenGroupingRequest) (*pb.OpenGroupingResponse, error) {
+func (p *Processor) StartGroupingActiveLiveChat(request *pb.StartGroupingActiveLiveChatRequest) (*pb.StartGroupingActiveLiveChatResponse, error) {
 	status := new(pb.Status)
 	groupingCtx, err := p.createGroupingContext(request)
 	if err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.OpenGroupingResponse{
+		return &pb.StartGroupingActiveLiveChatResponse{
 			Status: status,
 			GroupingId: "",
 			Video: nil,
@@ -861,70 +856,64 @@ func (p *Processor) OpenGrouping(request *pb.OpenGroupingRequest) (*pb.OpenGroup
 	if err != nil {
                 status.Code = pb.Code_INTERNAL_ERROR
                 status.Message = fmt.Sprintf("%v (videoId = %v)", err, request.VideoId)
-		return &pb.OpenGroupingResponse{
+		return &pb.StartGroupingActiveLiveChatResponse{
 			Status: status,
 			GroupingId: "",
 			Video: nil,
 		}, nil
 	}
 	if startCollectionActiveLiveChatResponse.Status.Code != pb.Code_SUCCESS && startCollectionActiveLiveChatResponse.Status.Code != pb.Code_IN_PROGRESS {
-		return &pb.OpenGroupingResponse{
+		return &pb.StartGroupingActiveLiveChatResponse{
 			Status: startCollectionActiveLiveChatResponse.Status,
 			GroupingId: "",
 			Video: nil,
 		}, nil
 	}
+	// XXX if startCollectionActiveLiveChatResponse.Status.Code == pb.Code_IN_PROGRESS: getVideo
+	// groupingContextを登録してwatcherを開始
 	p.registerRequestedGrouping(groupingCtx)
-	go p.groupingPublisher(groupingCtx)
 	go p.groupingWatcher(groupingCtx)
 	status.Code = pb.Code_SUCCESS
         status.Message = fmt.Sprintf("success (videoId = %v, groupingId = %v)", request.VideoId, groupingCtx.groupingId)
-        return &pb.OpenGroupingResponse{
+        return &pb.StartGroupingActiveLiveChatResponse{
                 Status: status,
 		GroupingId: groupingCtx.groupingId,
                 Video:  startCollectionActiveLiveChatResponse.Video,
         }, nil
 }
 
-func (p *Processor) CloseGrouping(request *pb.CloseGroupingRequest) (*pb.CloseGroupingResponse, error) {
-	status := new(pb.Status)
-	groupingCtx, ok := p.popRequestedGrouping(request.GroupingId)
+func (p *Processor) SubscribeGroupingActiveLiveChat(groupingId string) (*groupingContext, error) {
+	groupingCtx, ok := p.getRequestedGrouping(groupingId)
 	if !ok {
-                status.Code = pb.Code_NOT_FOUND
-                status.Message = fmt.Sprintf("not found grouping context (groupingId = %v)", request.GroupingId)
-		return &pb.CloseGroupingResponse{
-			Status: status,
-		}, nil
+		return nil, fmt.Errorf("not found groupingId (groupingId = %v)", groupingId)
 	}
-	groupingCtx.emitWatcherCloseEvent()
-	groupingCtx.emitPublisherCloseEvent()
-	status.Code = pb.Code_SUCCESS
-        status.Message = fmt.Sprintf("success (videoId = %v, groupingId = %v)", groupingCtx.videoId, groupingCtx.groupingId)
-        return &pb.CloseGroupingResponse{
-                Status: status,
-        }, nil
+	return groupingCtx, nil
 }
 
-func (p *Processor) SubscribeGroupingActiveLiveChat(groupingId string) (*subscribeGroupingActiveLiveChatParams, error) {
-	groupCtx, ok := p.getRequestedGrouping(groupingId)
+func (p *Processor) UnsubscribeGroupingActiveLiveChat(groupingId string) {
+	// watcherがすでに登録解除している場合は何もしない
+	groupingCtx, ok := p.popRequestedGrouping(groupingId)
 	if !ok {
-		return nil, fmt.Errorf("not found groupId (groupId = %v)", groupingId)
-	}
-        subscribeGroupingActiveLiveChatParams := &subscribeGroupingActiveLiveChatParams{
-                groupingId:   groupingId,
-                subscriberCh: make(chan *pb.PollGroupingActiveLiveChatResponse),
-        }
-        groupCtx.subscribeGroupingActiveLiveChatCh <- subscribeGroupingActiveLiveChatParams
-        return subscribeGroupingActiveLiveChatParams, nil
-}
-
-func (p *Processor) UnsubscribeGroupingActiveLiveChat(subscribeGroupingActiveLiveChatParams *subscribeGroupingActiveLiveChatParams) {
-	groupingCtx, ok := p.getRequestedGrouping(subscribeGroupingActiveLiveChatParams.groupingId)
-	if !ok {
-		log.Printf("not found groupId (groupId = %v)", subscribeGroupingActiveLiveChatParams.groupingId)
+		if p.verbose {
+			log.Printf("not found groupingId (groupingId = %v)", groupingId)
+		}
 		return
 	}
-        groupingCtx.unsubscribeGroupingActiveLiveChatCh <- subscribeGroupingActiveLiveChatParams
+        go p.discardGroupingActiveLiveChatUntilClosed(groupingCtx)
+	groupingCtx.emitWatcherCloseEvent()
+}
+
+func (p *Processor) discardGroupingActiveLiveChatUntilClosed(groupingCtx *groupingContext) {
+        // This is workaround of publisher blocking in case client closing
+        // XXX refactor
+        for {
+                select {
+                case _, ok := <-groupingCtx.GetSubscriberCh():
+                        if !ok {
+                                return
+                        }
+                }
+        }
 }
 
 func NewProcessor(collector *collector.Collector, mecabrc string, font string, opts ...Option) *Processor {

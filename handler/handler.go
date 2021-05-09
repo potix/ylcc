@@ -110,22 +110,18 @@ func (h *Handler) CloseVote(ctx context.Context, request *pb.CloseVoteRequest) (
 	return h.processor.CloseVote(request)
 }
 
-func (h *Handler) OpenGrouping(ctx context.Context, request *pb.OpenGroupingRequest)  (*pb.OpenGroupingResponse, error) {
-	return h.processor.OpenGrouping(request)
-}
-
-func (h *Handler) CloseGrouping(ctx context.Context, request *pb.CloseGroupingRequest) (*pb.CloseGroupingResponse, error) {
-	return h.processor.CloseGrouping(request)
+func (h *Handler) StartGroupingActiveLiveChat(ctx context.Context, request *pb.StartGroupingActiveLiveChatRequest)  (*pb.StartGroupingActiveLiveChatResponse, error) {
+	return h.processor.StartGroupingActiveLiveChat(request)
 }
 
 func (h *Handler) PollGroupingActiveLiveChat(request *pb.PollGroupingActiveLiveChatRequest, server pb.Ylcc_PollGroupingActiveLiveChatServer) error {
-	subscribeGroupingActiveLiveChatParams, err := h.processor.SubscribeGroupingActiveLiveChat(request.GroupingId)
+	groupingCtx, err := h.processor.SubscribeGroupingActiveLiveChat(request.GroupingId)
 	if err != nil {
 		return fmt.Errorf("can not subscribe: %w", err)
 	}
-	defer h.processor.UnsubscribeGroupingActiveLiveChat(subscribeGroupingActiveLiveChatParams)
+	defer h.processor.UnsubscribeGroupingActiveLiveChat(request.GroupingId)
 	for {
-		response, ok := <-subscribeGroupingActiveLiveChatParams.GetSubscriberCh()
+		response, ok := <-groupingCtx.GetSubscriberCh()
 		if !ok {
 			return nil
 		}
