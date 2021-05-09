@@ -52,12 +52,12 @@ func (s *subscribeActiveLiveChatParams) GetSubscriberCh() chan *pb.PollActiveLiv
 func (c *Collector) registerRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
-	if c.verbose {
-		log.Printf("register requested video fot active live chat (videoId = %v)", videoId)
-	}
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if ok {
 		return false
+	}
+	if c.verbose {
+		log.Printf("register requested video for active live chat (videoId = %v)", videoId)
 	}
 	c.requestedVideoForActiveLiveChat[videoId] = true
 	return true
@@ -76,12 +76,12 @@ func (c *Collector) checkRequestedVideoForActiveLiveChat(videoId string) bool {
 func (c *Collector) unregisterRequestedVideoForActiveLiveChat(videoId string) bool {
 	c.requestedVideoForActiveLiveChatMutex.Lock()
 	defer c.requestedVideoForActiveLiveChatMutex.Unlock()
-	if c.verbose {
-		log.Printf("unregister requested video fot active live chat (videoId = %v)", videoId)
-	}
 	_, ok := c.requestedVideoForActiveLiveChat[videoId]
 	if !ok {
 		return false
+	}
+	if c.verbose {
+		log.Printf("unregister requested video fot active live chat (videoId = %v)", videoId)
 	}
 	delete(c.requestedVideoForActiveLiveChat, videoId)
 	return true
@@ -643,7 +643,21 @@ func (c *Collector) SubscribeActiveLiveChat(videoId string) (*subscribeActiveLiv
 }
 
 func (c *Collector) UnsubscribeActiveLiveChat(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
+	go c.discardActiveLiveChatUntilClosed(subscribeActiveLiveChatParams)
 	c.unsubscribeActiveLiveChatCh <- subscribeActiveLiveChatParams
+}
+
+func (c *Collector) discardActiveLiveChatUntilClosed(subscribeActiveLiveChatParams *subscribeActiveLiveChatParams) {
+	// This is workaround of publisher blocking in case client closing
+	// XXX refactor
+	for {
+		select {
+		case _, ok := <-subscribeActiveLiveChatParams.GetSubscriberCh():
+			if !ok {
+				return
+			}
+		}
+	}
 }
 
 func (c *Collector) publisher() {
