@@ -16,7 +16,6 @@ import (
 type ylccProcessorConfig struct {
 	Mecabrc               string `toml:"mecabrc"`
 	Font                  string `toml:"font"`
-	WordCloudMessageLimit int    `toml:"wordCloudMessageLimit"`
 }
 
 type ylccCollectorConfig struct {
