@@ -716,6 +716,14 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 				groupIdx, ok := groupingCtx.group[activeLiveChatMessage.AuthorChannelId]
 				if ok {
 					// already grouping
+
+					// leave group
+					normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
+					messageIdx := strings.Index(normDisplayMessage, "///")
+					if !(messageIdx == -1)  {
+						delete(groupingCtx.group, activeLiveChatMessage.AuthorChannelId)
+					}
+
                                         groupingCtx.subscriberCh <- &pb.PollGroupingActiveLiveChatResponse{
 						Status: &pb.Status{
 							Code:    pb.Code_SUCCESS,
