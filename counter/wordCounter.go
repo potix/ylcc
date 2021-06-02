@@ -133,7 +133,7 @@ func NewWordCounter(mecabrc string, opts ...Option) *WordCounter {
 		mecabrc: mecabrc,
 		result:  make(map[string]int),
 		splitRe: regexp.MustCompile(`[ 　\t]+`),
-		stampRe: regexp.MustCompile(`:.+?:`),
+		stampRe: regexp.MustCompile(`:[^:]+?:`),
 		symbolRe: regexp.MustCompile(`[!！?？,、.。]`),
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 	"strings"
+	"regexp"
 	"sort"
 	"github.com/potix/ylcc/collector"
 	"github.com/potix/ylcc/counter"
@@ -50,6 +51,7 @@ type Processor struct {
 	requestedVote                map[string]*voteContext
 	requestedGroupingMutex       *sync.Mutex
 	requestedGrouping            map[string]*groupingContext
+	stampRe                      *regexp.Regexp
 }
 
 func (p *Processor) registerRequestedVideoWordCloud(videoId string) bool {
@@ -451,6 +453,8 @@ func (p *Processor) voteWatcher(voteCtx *voteContext) {
 					}
 				}
 				normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
+				normDisplayMessage = p.stampRe.ReplaceAllString(normDisplayMessage, "")
+
 				matches := make([]*match, 0, len(voteCtx.choices))
 				for choiceIdx := 0; choiceIdx < len(voteCtx.choices); choiceIdx += 1 {
 					choice := voteCtx.choices[choiceIdx]
@@ -719,8 +723,12 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 
 					// leave group
 					normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
+					normDisplayMessage = p.stampRe.ReplaceAllString(normDisplayMessage, "")
 					messageIdx := strings.Index(normDisplayMessage, ";;;")
 					if !(messageIdx == -1)  {
+						if p.verbose {
+							log.Printf("leave group (id = %v, index = %v)", activeLiveChatMessage.AuthorChannelId, groupIdx)
+						}
 						delete(groupingCtx.group, activeLiveChatMessage.AuthorChannelId)
 					}
 
@@ -751,6 +759,7 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 					}
 				}
 				normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
+				normDisplayMessage = p.stampRe.ReplaceAllString(normDisplayMessage, "")
 				matches := make([]*match, 0, len(groupingCtx.choices))
 				for choiceIdx := 0; choiceIdx < len(groupingCtx.choices); choiceIdx += 1 {
 					choice := groupingCtx.choices[choiceIdx]
@@ -769,6 +778,9 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 				m := matches[0]
 				groupIdx = m.choiceIdx
 				groupingCtx.group[activeLiveChatMessage.AuthorChannelId] = groupIdx
+				if p.verbose {
+					log.Printf("join group (id = %v, index = %v)", activeLiveChatMessage.AuthorChannelId, groupIdx)
+				}
 				groupingCtx.subscriberCh <- &pb.PollGroupingActiveLiveChatResponse{
 					Status: &pb.Status{
 						Code:    pb.Code_SUCCESS,
@@ -892,6 +904,7 @@ func NewProcessor(collector *collector.Collector, mecabrc string, font string, o
 		requestedVote:                make(map[string]*voteContext),
 		requestedGroupingMutex:       new(sync.Mutex),
 		requestedGrouping:            make(map[string]*groupingContext),
+		stampRe:                      regexp.MustCompile(`:[^:]+?:`),
 
 	}
 }
