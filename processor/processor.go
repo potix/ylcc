@@ -596,59 +596,6 @@ func (p *Processor) CloseVote(request *pb.CloseVoteRequest) (*pb.CloseVoteRespon
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 type groupingContext struct {
 	groupingId                          string
 	videoId                             string
