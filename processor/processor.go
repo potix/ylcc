@@ -719,7 +719,7 @@ func (p *Processor) groupingWatcher(groupingCtx *groupingContext) {
 
 					// leave group
 					normDisplayMessage := norm.NFKC.String(activeLiveChatMessage.DisplayMessage)
-					messageIdx := strings.Index(normDisplayMessage, "///")
+					messageIdx := strings.Index(normDisplayMessage, ";;;")
 					if !(messageIdx == -1)  {
 						delete(groupingCtx.group, activeLiveChatMessage.AuthorChannelId)
 					}
